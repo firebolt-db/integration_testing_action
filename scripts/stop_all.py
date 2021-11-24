@@ -38,6 +38,7 @@ if __name__ == "__main__":
     try:
         engine = rm.engines.get_by_name(engine_name)
     except RuntimeError as e:
+        # Ignore non existing engine error, still need to drop the db
         if "Record not found" not in str(e):
             raise e
     else:
