@@ -35,7 +35,13 @@ if __name__ == "__main__":
         raise RuntimeError("database name argument  should be provided")
     database_name = argv[1]
     engine_name = database_name
-    engine = rm.engines.get_by_name(engine_name)
-    engine_wait_stop(engine)
-    engine_wait_delete(engine, rm)
+    try:
+        engine = rm.engines.get_by_name(engine_name)
+    except RuntimeError as e:
+        # Ignore non existing engine error, still need to drop the db
+        if "Record not found" not in str(e):
+            raise e
+    else:
+        engine_wait_stop(engine)
+        engine_wait_delete(engine, rm)
     rm.databases.get_by_name(database_name).delete()
