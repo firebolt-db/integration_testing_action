@@ -20,4 +20,4 @@ if __name__ == "__main__":
     stopped_engine = rm.engines.create(stopped_engine_name, scale=1, spec="B1")
     stopped_engine.attach_to_database(database, True)
 
-    print(engine.name, engine.endpoint)
+    print(engine.name, engine.endpoint, stopped_engine.name, stopped_engine.endpoint)
