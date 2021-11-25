@@ -24,6 +24,10 @@ outputs:
     description: Name of created engine
   engine_url:
     description: Endpoint of created engine
+  stopped_engine_name:
+    description: Name of created engine in stopped state
+  stopped_engine_url:
+    description: Endpoint of created engine in stopped state
         
 runs:
   using: docker
