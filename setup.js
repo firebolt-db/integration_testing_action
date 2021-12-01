@@ -1,11 +1,11 @@
 const core = require('@actions/core');
-const exec = require('child_process').exec;
+const { exec } = require("child_process");
 
 function start_db(on_success, on_error) {
     exec('python3 scripts/start_database.py',
 	 function(error, stdout, stderr) {
 	     error == null ? on_success(stdout) : on_error(error.message);
-	 })();    
+	 });
 }
 
 function start_engine(db_name, on_success, on_error) {
@@ -15,12 +15,12 @@ function start_engine(db_name, on_success, on_error) {
 		 return on_error(error.message);
 	     }
 	     values = stdout.split(' ');
-	     engine_name = values[0];
-	     engine_url = values[1];
-	     stopped_engine_name = values[2]
-	     stopped_engine_url = values[3]
+	     engine_name = values[0].trimRight('\n');
+	     engine_url = values[1].trimRight('\n');
+	     stopped_engine_name = values[2].trimRight('\n');
+	     stopped_engine_url = values[3].trimRight('\n');
 	     return on_success(engine_name, engine_url, stopped_engine_name, stopped_engine_url);
-	 })();    
+	 });
 }
 
 try {
@@ -30,7 +30,7 @@ try {
 	    core.saveState('database_name', db_name);
 	    start_engine(
 		db_name,
-		en, eu, sen, seu  => {
+		(en, eu, sen, seu)  => {
 		    core.setOutput('engine_name', en);
 		    core.saveState('engine_name', en);
 		    core.setOutput('engine_url', eu);
