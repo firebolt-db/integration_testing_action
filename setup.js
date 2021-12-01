@@ -24,7 +24,7 @@ function start_engine(db_name, on_success, on_error) {
 }
 
 try {
-    exec('ls', (err, out, stderr) => core.info(out))
+    exec('pwd', (err, out, stderr) => core.info(out))
     start_db(
 	db_name => {
 	    core.setOutput('database_name', db_name);
