@@ -1,5 +1,10 @@
 const core = require('@actions/core');
+const github = require('@actions/github')
 const { exec } = require("child_process");
+
+function resolve_local_file(file_path) {
+    return "/home/runner/work/_actions/firebolt-db/integration-testing-setup/convert_to_js/"
+}
 
 function start_db(on_success, on_error) {
     exec('python3 scripts/start_database.py',
@@ -24,6 +29,8 @@ function start_engine(db_name, on_success, on_error) {
 }
 
 try {
+    core.info(JSON.stringify(github.context))
+    core.info(JSON.stringify(process.env))
     exec('pwd', (err, out, stderr) => core.info(out))
     start_db(
 	db_name => {
