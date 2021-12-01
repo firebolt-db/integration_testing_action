@@ -41,9 +41,6 @@ function start_engine(db_name, on_success, on_error) {
 }
 
 try {
-    core.info(JSON.stringify(github.context))
-    core.info(JSON.stringify(process.env))
-    exec('pwd', (err, out, stderr) => core.info(out))
     start_db(
 	db_name => {
 	    core.setOutput('database_name', db_name);
