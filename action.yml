@@ -33,11 +33,3 @@ runs:
   using: node12
   main: setup.js
   post: cleanup.js
-  
-  env:
-    FIREBOLT_USER: ${{ inputs.firebolt-username }}
-    FIREBOLT_PASSWORD: ${{ inputs.firebolt-password }}
-    FIREBOLT_SERVER: ${{ inputs.api-endpoint}}
-    FIREBOLT_DEFAULT_REGION: ${{ inputs.region}}
-  entrypoint: /setup.sh
-  post-entrypoint: /cleanup.sh
