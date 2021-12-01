@@ -9,5 +9,6 @@ if __name__ == "__main__":
     suffix = argv[0] if len(argv) > 0 else ""
     suffix = suffix.replace(".\\/-", "")
     database_name = f"integration_testing_{suffix}_{int(time())}"
+    raise Exception(database_name)
     rm.databases.create(database_name)
     print(database_name)
