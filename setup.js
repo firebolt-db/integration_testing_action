@@ -2,6 +2,12 @@ const core = require('@actions/core');
 const github = require('@actions/github')
 const { exec } = require("child_process");
 const path = require('path');
+const fb_env = {
+    'FIREBOLT_USER': core.getInput('firebol-username'),
+    'FIREBOLT_PASSWORD': core.getInput('firebolt-password'),
+    'FIREBOLT_SERVER': core.getInput('api-endpoint'),
+    'FIREBOLT_DEFAULT_REGION': core.getInput('region')	     
+}
 
 
 function resolve_local_file(file_path) {
@@ -12,6 +18,7 @@ function resolve_local_file(file_path) {
 
 function start_db(on_success, on_error) {
     exec('python3 ' +  resolve_local_file('scripts/start_database.py'),
+	 {env: fb_env},
 	 function(error, stdout, stderr) {
 	     error == null ? on_success(stdout) : on_error(error.message);
 	 });
@@ -19,6 +26,7 @@ function start_db(on_success, on_error) {
 
 function start_engine(db_name, on_success, on_error) {
     exec('python3 ' + resolve_local_file('scripts/start_engine.py') + ' ' + db_name,
+	 {env: fb_env},
 	 function(error, stdout, stderr) {
 	     if (error != null) {
 		 return on_error(error.message);
