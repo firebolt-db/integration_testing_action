@@ -30,8 +30,10 @@ outputs:
     description: Endpoint of created engine in stopped state
         
 runs:
-  using: docker
-  image: Dockerfile
+  using: node12
+  main: setup.js
+  post: cleanup.js
+  
   env:
     FIREBOLT_USER: ${{ inputs.firebolt-username }}
     FIREBOLT_PASSWORD: ${{ inputs.firebolt-password }}
