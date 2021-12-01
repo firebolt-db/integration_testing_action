@@ -17,7 +17,7 @@ function resolve_local_file(file_path) {
 }
 
 function start_db(on_success, on_error) {
-    exec('python3 ' +  resolve_local_file('scripts/start_database.py'),
+    exec('python ' +  resolve_local_file('scripts/start_database.py'),
 	 {env: fb_env},
 	 function(error, stdout, stderr) {
 	     error == null ? on_success(stdout) : on_error(error.message);
@@ -25,7 +25,7 @@ function start_db(on_success, on_error) {
 }
 
 function start_engine(db_name, on_success, on_error) {
-    exec('python3 ' + resolve_local_file('scripts/start_engine.py') + ' ' + db_name,
+    exec('python ' + resolve_local_file('scripts/start_engine.py') + ' ' + db_name,
 	 {env: fb_env},
 	 function(error, stdout, stderr) {
 	     if (error != null) {
