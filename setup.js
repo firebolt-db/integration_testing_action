@@ -3,7 +3,7 @@ const github = require('@actions/github')
 const { exec } = require("child_process");
 const path = require('path');
 const fb_env = {
-	'FIREBOLT_USER': core.getInput('firebol-username'),
+	'FIREBOLT_USER': core.getInput('firebolt-username'),
 	'FIREBOLT_PASSWORD': core.getInput('firebolt-password'),
 	'FIREBOLT_SERVER': core.getInput('api-endpoint'),
 	'FIREBOLT_DEFAULT_REGION': core.getInput('region')
@@ -61,7 +61,6 @@ function start_engine(db_name, python_dir, on_success, on_error) {
 }
 
 try {
-    core.info("SDK Env:\n" + JSON.stringify(fb_env));
     setup_virtualenv(pp => {
 	core.saveState('python_path', pp);
 		install_firebolt_sdk(pp,
