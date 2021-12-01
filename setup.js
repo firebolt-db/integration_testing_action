@@ -37,7 +37,7 @@ function install_firebolt_sdk(python_dir, on_success, on_error) {
 }
 
 function start_db(python_dir, on_success, on_error) {
-	exec(path.join(python_dir, 'python') + ' ' + resolve_local_file('scripts/start_database.py'),
+    exec(path.join(python_dir, 'python') + ' ' + resolve_local_file('scripts/start_database.py') + ' ' + core.getInput('db_suffix'),
 		{ env: fb_env },
 		function(error, stdout, stderr) {
 			error == null ? on_success(stdout, python_dir) : on_error(error.message);

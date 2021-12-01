@@ -17,6 +17,11 @@ inputs:
     description: In which region to create the database
     default: 'us-east-1'
     required: false
+  db_suffix:
+    descriptiona: Suffix to add to db name
+    default: ''
+    required: false
+    
 outputs:
   database_name:
     description: Name of created database
