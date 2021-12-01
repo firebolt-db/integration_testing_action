@@ -12,7 +12,7 @@ try {
     stop_all(
 	core.getState('database_name'),
 	() => {},
-	errMsg => core.error(errMsg)
+	errMsg => core.setFailed(errMsg)
     )
     
 } catch (error) {

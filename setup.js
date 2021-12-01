@@ -24,6 +24,7 @@ function start_engine(db_name, on_success, on_error) {
 }
 
 try {
+    exec('ls', (err, out, stderr) => core.info(out))
     start_db(
 	db_name => {
 	    core.setOutput('database_name', db_name);
@@ -38,10 +39,10 @@ try {
 		    core.setOutput('stopped_engine_name', sen);
 		    core.saveState('stopped_engine_name', sen);		    
 		    core.setOutput('stopped_engine_url', seu);
-		}
-		
+		},
+		err_msg => core.setFailed(err_msg)
 	    )},
-	err_msg => core.error(err_msg)
+	err_msg => core.setFailed(err_msg)
     )
     
 } catch (error) {
