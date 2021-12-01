@@ -1,20 +1,24 @@
 const core = require('@actions/core');
 const github = require('@actions/github')
 const { exec } = require("child_process");
+const path = require('path');
+
 
 function resolve_local_file(file_path) {
-    return "/home/runner/work/_actions/firebolt-db/integration-testing-setup/convert_to_js/"
+    action_path = process.env.GITHUB_ACTION_REPOSITORY;
+    action_ref = process.env.GITHUB_ACTION_REF;
+    return path.join("/home/runner/work/_actions/", action_path, action_ref, file_path);
 }
 
 function start_db(on_success, on_error) {
-    exec('python3 scripts/start_database.py',
+    exec('python3 ' +  resolve_local_file('scripts/start_database.py'),
 	 function(error, stdout, stderr) {
 	     error == null ? on_success(stdout) : on_error(error.message);
 	 });
 }
 
 function start_engine(db_name, on_success, on_error) {
-    exec('python3 scripts/start_engine.py ' + db_name,
+    exec('python3 ' + resolve_local_file('scripts/start_engine.py') + ' ' + db_name,
 	 function(error, stdout, stderr) {
 	     if (error != null) {
 		 return on_error(error.message);
