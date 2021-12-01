@@ -61,29 +61,32 @@ function start_engine(db_name, python_dir, on_success, on_error) {
 }
 
 try {
-	setup_virtualenv(pp => install_firebolt_sdk(pp,
-		pp => start_db(pp,
-			(db_name, pp) => {
-				core.setOutput('database_name', db_name);
-				core.saveState('database_name', db_name);
-				start_engine(
-					db_name, pp,
-					(en, eu, sen, seu) => {
-						core.setOutput('engine_name', en);
-						core.saveState('engine_name', en);
-						core.setOutput('engine_url', eu);
+    setup_virtualenv(pp => {
+	core.saveState('python_path', pp);
+		install_firebolt_sdk(pp,
+			pp => start_db(pp,
+				(db_name, pp) => {
+					core.setOutput('database_name', db_name);
+					core.saveState('database_name', db_name);
+					start_engine(
+						db_name, pp,
+						(en, eu, sen, seu) => {
+							core.setOutput('engine_name', en);
+							core.saveState('engine_name', en);
+							core.setOutput('engine_url', eu);
 
-						core.setOutput('stopped_engine_name', sen);
-						core.saveState('stopped_engine_name', sen);
-						core.setOutput('stopped_engine_url', seu);
-					},
-					err_msg => core.setFailed(err_msg)
-				)
-			},
+							core.setOutput('stopped_engine_name', sen);
+							core.saveState('stopped_engine_name', sen);
+							core.setOutput('stopped_engine_url', seu);
+						},
+						err_msg => core.setFailed(err_msg)
+					)
+				},
+				err_msg => core.setFailed(err_msg)
+			),
 			err_msg => core.setFailed(err_msg)
-		),
-		err_msg => core.setFailed(err_msg)
-	), err_msg => core.setFailed(err_msg))
+		), err_msg => core.setFailed(err_msg)
+	})
 
 } catch (error) {
 	core.setFailed(error.message);
