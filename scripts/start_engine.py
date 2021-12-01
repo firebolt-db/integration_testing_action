@@ -2,13 +2,14 @@ from sys import argv
 
 from firebolt.common.settings import Settings
 from firebolt.service.manager import ResourceManager
-from firebolt.service.instance_type import HasStorage
 
 
 def get_cheapest_instance(rm: ResourceManager) -> str:
     instance_list = rm.instance_types.instance_types
     # Filter out instances without storage
-    instance_list = [i for i in instance_list if i.storage_size_bytes and i.storage_size_bytes != "0"]
+    instance_list = [
+        i for i in instance_list if i.storage_size_bytes and i.storage_size_bytes != "0"
+    ]
     cheapest = min(instance_list, key=lambda x: x.price_per_hour_cents)
     return cheapest
 
