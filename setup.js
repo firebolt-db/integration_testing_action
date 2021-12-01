@@ -41,6 +41,8 @@ function start_engine(db_name, on_success, on_error) {
 }
 
 try {
+    exec('which python', (err, out, e) => core.info(out))
+    exec('python -m pip freeze', (err, out, e) => core.info(out))
     start_db(
 	db_name => {
 	    core.setOutput('database_name', db_name);
