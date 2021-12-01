@@ -61,6 +61,7 @@ function start_engine(db_name, python_dir, on_success, on_error) {
 }
 
 try {
+    core.info("SDK Env:\n" + JSON.stringify(fb_env));
     setup_virtualenv(pp => {
 	core.saveState('python_path', pp);
 		install_firebolt_sdk(pp,
