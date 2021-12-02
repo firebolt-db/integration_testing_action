@@ -9,11 +9,14 @@ const fb_env = {
 	'FIREBOLT_DEFAULT_REGION': core.getInput('region')
 }
 
+core.info("Action workdir: " + __dirname)
+
 
 function resolve_local_file(file_path) {
-	action_path = process.env.GITHUB_ACTION_REPOSITORY;
-	action_ref = process.env.GITHUB_ACTION_REF;
-	return path.join("/home/runner/work/_actions/", action_path, action_ref, file_path);
+    return path.join(__dirname, file_path)
+//	action_path = process.env.GITHUB_ACTION_REPOSITORY;
+//	action_ref = process.env.GITHUB_ACTION_REF;
+//	return path.join("/home/runner/work/_actions/", action_path, action_ref, file_path);
 }
 
 function setup_virtualenv(on_success, on_error) {
