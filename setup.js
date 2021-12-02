@@ -13,10 +13,7 @@ core.info("Action workdir: " + __dirname)
 
 
 function resolve_local_file(file_path) {
-    return path.join(__dirname, file_path)
-//	action_path = process.env.GITHUB_ACTION_REPOSITORY;
-//	action_ref = process.env.GITHUB_ACTION_REF;
-//	return path.join("/home/runner/work/_actions/", action_path, action_ref, file_path);
+	return path.join(__dirname, file_path)
 }
 
 function setup_virtualenv(on_success, on_error) {
@@ -25,7 +22,7 @@ function setup_virtualenv(on_success, on_error) {
 			if (error != null) {
 				return on_error(error.message)
 			}
-		    python_dir = path.join(resolve_local_file('.venv'), process.platform == 'win32' ? '/Scripts' : '/bin/');
+			python_dir = path.join(resolve_local_file('.venv'), process.platform == 'win32' ? '/Scripts' : '/bin/');
 			on_success(python_dir)
 		}
 	)
@@ -40,10 +37,10 @@ function install_firebolt_sdk(python_dir, on_success, on_error) {
 }
 
 function start_db(python_dir, on_success, on_error) {
-    exec(path.join(python_dir, 'python') + ' ' + resolve_local_file('scripts/start_database.py') + ' ' + core.getInput('db_suffix'),
+	exec(path.join(python_dir, 'python') + ' ' + resolve_local_file('scripts/start_database.py') + ' ' + core.getInput('db_suffix'),
 		{ env: fb_env },
 		function(error, stdout, stderr) {
-			error == null ? on_success(stdout, python_dir) : on_error(error.message);
+			error == null ? on_success(stdout.trim('\n'), python_dir) : on_error(error.message);
 		});
 }
 
@@ -55,17 +52,17 @@ function start_engine(db_name, python_dir, on_success, on_error) {
 				return on_error(error.message);
 			}
 			values = stdout.split(' ');
-			engine_name = values[0].trimRight('\n');
-			engine_url = values[1].trimRight('\n');
-			stopped_engine_name = values[2].trimRight('\n');
-			stopped_engine_url = values[3].trimRight('\n');
+			engine_name = values[0].trim('\n');
+			engine_url = values[1].trim('\n');
+			stopped_engine_name = values[2].trim('\n');
+			stopped_engine_url = values[3].trim('\n');
 			return on_success(engine_name, engine_url, stopped_engine_name, stopped_engine_url);
 		});
 }
 
 try {
-    setup_virtualenv(pp => {
-	core.saveState('python_path', pp);
+	setup_virtualenv(pp => {
+		core.saveState('python_path', pp);
 		install_firebolt_sdk(pp,
 			pp => start_db(pp,
 				(db_name, pp) => {
