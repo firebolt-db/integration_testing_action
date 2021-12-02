@@ -25,7 +25,7 @@ function setup_virtualenv(on_success, on_error) {
 			if (error != null) {
 				return on_error(error.message)
 			}
-			python_dir = path.join(resolve_local_file('.venv'), '/bin/');
+		    python_dir = path.join(resolve_local_file('.venv'), process.platform == 'win32' ? '/Scripts' : '/bin/');
 			on_success(python_dir)
 		}
 	)
