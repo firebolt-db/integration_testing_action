@@ -10,9 +10,7 @@ const fb_env = {
 
 
 function resolve_local_file(file_path) {
-    action_path = process.env.GITHUB_ACTION_REPOSITORY;
-    action_ref = process.env.GITHUB_ACTION_REF;
-    return path.join("/home/runner/work/_actions/", action_path, action_ref, file_path);
+        return path.join(__dirname, file_path)
 }
 
 function stop_all(db_name, on_success, on_error) {
