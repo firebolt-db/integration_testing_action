@@ -19,6 +19,7 @@
   "homepage": "https://github.com/firebolt-db/integration_testing_action#readme",
   "dependencies": {
     "@actions/core": "^1.6.0",
-    "@actions/github": "^5.0.0"
+    "@actions/github": "^5.0.0",
+    "rollup": "^2.61.0"
   }
 }
