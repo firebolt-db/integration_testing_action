@@ -1,4 +1,3 @@
 #!/usr/bin/bash
-rollup setup.js --file setup_bundle.js --format cjs
-rollup cleanup.js --file cleanup_bundle.js --format cjs
-
+ncc build setup.js -o dist/setup
+ncc build cleanup.js -o dist/cleanup
