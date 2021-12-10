@@ -18,7 +18,7 @@ inputs:
     default: 'us-east-1'
     required: false
   db_suffix:
-    descriptiona: Suffix to add to db name
+    description: Suffix to add to db name
     default: ''
     required: false
     
