@@ -36,5 +36,5 @@ outputs:
         
 runs:
   using: node12
-  main: setup.js
-  post: cleanup.js
+  main: setup_bundle.js
+  post: cleanup_bundle.js
