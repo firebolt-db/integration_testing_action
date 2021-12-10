@@ -8,9 +8,10 @@ const fb_env = {
   'FIREBOLT_DEFAULT_REGION': core.getInput('region')
 }
 
+const action_workdir = path.join(__dirname, "../../")
 
 function resolve_local_file(file_path) {
-  return path.join(__dirname, file_path)
+  return path.join(action_workdir, file_path)
 }
 
 function stop_all(db_name, on_success, on_error) {
