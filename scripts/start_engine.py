@@ -30,6 +30,6 @@ if __name__ == "__main__":
     # No start needed, stopped engine should always be stopped
     stopped_engine_name = engine_name + "_stopped"
     stopped_engine = rm.engines.create(stopped_engine_name, scale=1, spec=instance_spec)
-    stopped_engine.attach_to_database(database, True)
+    stopped_engine.attach_to_database(database, False)
 
     print(engine.name, engine.endpoint, stopped_engine.name, stopped_engine.endpoint)
