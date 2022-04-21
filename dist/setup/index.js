@@ -1691,8 +1691,8 @@ const fb_env = {
   'FIREBOLT_USER': core.getInput('firebolt-username'),
   'FIREBOLT_PASSWORD': core.getInput('firebolt-password'),
   'FIREBOLT_SERVER': core.getInput('api-endpoint'),
-  'FIREBOLT_DEFAULT_REGION': core.getInput('region')
-  'FIREBOLT_ENGINE_SPEC': core.getInput('instance-type'),
+  'FIREBOLT_DEFAULT_REGION': core.getInput('region'),
+  'FIREBOLT_ENGINE_SPEC': core.getInput('instance-type')
 }
 
 const action_workdir = path.join(__dirname, "../../")
