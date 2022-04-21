@@ -26,7 +26,7 @@ if __name__ == "__main__":
     engine_name = database_name
     database = rm.databases.get_by_name(database_name)
     
-    instance_spec = os.environ("FIREBOLT_ENGINE_SPEC")
+    instance_spec = os.environ.get("FIREBOLT_ENGINE_SPEC")
     if not instance_spec:
         instance_spec = get_cheapest_instance(rm).name
 
