@@ -3,6 +3,7 @@ from sys import argv
 from firebolt.common.settings import Settings
 from firebolt.service.manager import ResourceManager
 
+import os
 
 def get_cheapest_instance(rm: ResourceManager) -> str:
     instance_list = rm.instance_types.instance_types
