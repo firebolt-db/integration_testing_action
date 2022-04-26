@@ -17,6 +17,10 @@ inputs:
     description: In which region to create the database
     default: 'us-east-1'
     required: false
+  instance-type:
+    description: Instance type of the running instance
+    default: ''
+    required: false
   db_suffix:
     description: Suffix to add to db name
     default: ''
