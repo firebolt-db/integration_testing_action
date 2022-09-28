@@ -43,7 +43,7 @@ function start_db(python_dir, on_success, on_error) {
     [resolve_local_file('scripts/start_database.py'), core.getInput('db_suffix')],
     { env: fb_env }
   );
-  return result.error == null ? on_success(result.stdout.trim('\n'), python_dir) : on_error(result.error.message);
+  return result.error == null ? on_success(result.stdout.toString().trim('\n'), python_dir) : on_error(result.error.message);
 }
 
 function start_engine(db_name, python_dir, on_success, on_error) {
@@ -54,7 +54,7 @@ function start_engine(db_name, python_dir, on_success, on_error) {
   if (result.error != null) {
     return on_error(error.message);
   }
-  values = result.stdout.split(' ');
+  values = result.stdout.toString().split(' ');
   engine_name = values[0].trim('\n');
   engine_url = values[1].trim('\n');
   stopped_engine_name = values[2].trim('\n');
