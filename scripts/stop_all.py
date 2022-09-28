@@ -10,8 +10,6 @@ from firebolt.service.types import EngineStatusSummary
 from httpx import HTTPStatusError
 from retry import retry
 
-logging.basicConfig()
-
 WAIT_SLEEP_SECONDS = 5
 
 
