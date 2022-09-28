@@ -30,8 +30,8 @@ function setup_virtualenv(on_success, on_error) {
   )
 }
 
-function install_firebolt_sdk(python_dir, on_success, on_error) {
-  exec(path.join(python_dir, "pip") + " install firebolt-sdk",
+function install_python_dependencies(python_dir, on_success, on_error) {
+  exec(path.join(python_dir, "pip") + " install firebolt-sdk retry",
     function(error, stdout, stderr) {
       error == null ? on_success(python_dir) : on_error(error.message);
     }
@@ -65,7 +65,7 @@ function start_engine(db_name, python_dir, on_success, on_error) {
 try {
   setup_virtualenv(pp => {
     core.saveState('python_path', pp);
-    install_firebolt_sdk(pp,
+    install_python_dependencies(pp,
       pp => start_db(pp,
         (db_name, pp) => {
           core.setOutput('database_name', db_name);
