@@ -2851,14 +2851,16 @@ function install_python_dependencies(python_dir, on_success, on_error) {
 }
 
 function start_db(python_dir, on_success, on_error) {
-  result = spawnSync(path.join(python_dir, 'python') + ' ' + resolve_local_file('scripts/start_database.py') + ' ' + core.getInput('db_suffix'),
+  result = spawnSync(path.join(python_dir, 'python'),
+    [resolve_local_file('scripts/start_database.py'), core.getInput('db_suffix')],
     { env: fb_env }
   );
   return result.error == null ? on_success(result.stdout.trim('\n'), python_dir) : on_error(result.error.message);
 }
 
 function start_engine(db_name, python_dir, on_success, on_error) {
-  result = spawnSync(path.join(python_dir, 'python') + ' ' + resolve_local_file('scripts/start_engine.py') + ' ' + db_name,
+  result = spawnSync(path.join(python_dir, 'python'),
+    [resolve_local_file('scripts/start_engine.py'), db_name],
     { env: fb_env }
   );
   if (result.error != null) {
