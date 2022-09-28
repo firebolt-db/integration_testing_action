@@ -1,4 +1,3 @@
-import logging
 from sys import argv
 from time import sleep
 
@@ -8,8 +7,6 @@ from firebolt.service.manager import ResourceManager
 from firebolt.service.types import EngineStatusSummary
 from httpx import HTTPStatusError
 from retry import retry
-
-logging.basicConfig()
 
 WAIT_SLEEP_SECONDS = 5
 
