@@ -2866,11 +2866,11 @@ function start_engine(db_name, python_dir, on_success, on_error) {
   if (result.error != null) {
     return on_error(error.message);
   }
-  values = result.stdout.toString().split(' ');
-  engine_name = values[0].trim('\n');
-  engine_url = values[1].trim('\n');
-  stopped_engine_name = values[2].trim('\n');
-  stopped_engine_url = values[3].trim('\n');
+  const values = result.stdout.toString().split(' ');
+  const engine_name = values[0].trim('\n');
+  const engine_url = values[1].trim('\n');
+  const stopped_engine_name = values[2].trim('\n');
+  const stopped_engine_url = values[3].trim('\n');
   return on_success(engine_name, engine_url, stopped_engine_name, stopped_engine_url);
 }
 
