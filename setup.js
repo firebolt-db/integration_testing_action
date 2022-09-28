@@ -39,7 +39,7 @@ function install_python_dependencies(python_dir, on_success, on_error) {
 }
 
 function start_db(python_dir, on_success, on_error) {
-  result = spawnSync(path.join(python_dir, 'python'),
+  const result = spawnSync(path.join(python_dir, 'python'),
     [resolve_local_file('scripts/start_database.py'), core.getInput('db_suffix')],
     { env: fb_env }
   );
@@ -47,7 +47,7 @@ function start_db(python_dir, on_success, on_error) {
 }
 
 function start_engine(db_name, python_dir, on_success, on_error) {
-  result = spawnSync(path.join(python_dir, 'python'),
+  const result = spawnSync(path.join(python_dir, 'python'),
     [resolve_local_file('scripts/start_engine.py'), db_name],
     { env: fb_env }
   );
