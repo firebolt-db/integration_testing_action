@@ -19,23 +19,20 @@ function resolve_local_file(file_path) {
 }
 
 function setup_virtualenv(on_success, on_error) {
-  exec('rm -r' + resolve_local_file('.venv') + ' || true && python -m pip install virtualenv && python -m virtualenv ' + resolve_local_file('.venv'),
-    function (error, stdout, stderr) {
-      if (error != null) {
-        return on_error(error.message)
-      }
-      const python_dir = path.join(resolve_local_file('.venv'), process.platform == 'win32' ? '/Scripts' : '/bin/');
-      return on_success(python_dir)
-    }
-  )
+  spawnSync('rm', ['-r', resolve_local_file('.venv')])
+  const result = spawnSync('python',
+    ['-m pip install virtualenv && python -m virtualenv ' + resolve_local_file('.venv')]);
+  if (result.error != null) {
+    return on_error(error.message)
+  }
+  const python_dir = path.join(resolve_local_file('.venv'), process.platform == 'win32' ? '/Scripts' : '/bin/');
+  return on_success(python_dir)
 }
 
 function install_python_dependencies(python_dir, on_success, on_error) {
-  exec(path.join(python_dir, "pip") + " install firebolt-sdk==0.11.0 retry",
-    function (error, stdout, stderr) {
-      error == null ? on_success(python_dir) : on_error(error.message);
-    }
-  )
+  const result = spawnSync(path.join(python_dir, "pip"),
+    ["install firebolt-sdk>=0.11.0 retry"]);
+  return result.error == null ? on_success(python_dir) : on_error(result.error.message);
 }
 
 function start_db(python_dir, on_success, on_error) {
