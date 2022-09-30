@@ -36,7 +36,7 @@ function setup_virtualenv(on_success, on_error) {
 
 function install_python_dependencies(python_dir, on_success, on_error) {
   const result = spawnSync(path.join(python_dir, "python"),
-    ["-m pip", "install", "firebolt-sdk", "retry"]);
+    ["-m", "pip", "install", "firebolt-sdk", "retry"]);
   return result.error == null ? on_success(python_dir) : on_error(result.error.message);
 }
 
@@ -56,12 +56,13 @@ function start_engine(db_name, python_dir, on_success, on_error) {
   if (result.stderr.toString().length != 0) {
     return on_error(result.stderr.toString());
   }
-  const values = result.stdout.toString().split(' ');
+  const values = result.output;
   const engine_name = values[0].trim('\n');
   const engine_url = values[1].trim('\n');
   const stopped_engine_name = values[2].trim('\n');
   const stopped_engine_url = values[3].trim('\n');
   return on_success(engine_name, engine_url, stopped_engine_name, stopped_engine_url);
+  // return on_success("engine_name", "engine_url", "stopped_engine_name", "stopped_engine_url");
 }
 
 try {
