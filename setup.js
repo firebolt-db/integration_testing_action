@@ -1,5 +1,5 @@
 const core = require('@actions/core');
-const { exec } = require("child_process");
+const { exec, spawnSync } = require("child_process");
 const path = require('path');
 const fb_env = {
   'FIREBOLT_USER': core.getInput('firebolt-username'),
@@ -20,7 +20,7 @@ function resolve_local_file(file_path) {
 
 function setup_virtualenv(on_success, on_error) {
   exec('python -m pip install virtualenv && python -m virtualenv ' + resolve_local_file('.venv'),
-    function(error, stdout, stderr) {
+    function (error, stdout, stderr) {
       if (error != null) {
         return on_error(error.message)
       }
@@ -30,42 +30,42 @@ function setup_virtualenv(on_success, on_error) {
   )
 }
 
-function install_firebolt_sdk(python_dir, on_success, on_error) {
-  exec(path.join(python_dir, "pip") + " install firebolt-sdk",
-    function(error, stdout, stderr) {
+function install_python_dependencies(python_dir, on_success, on_error) {
+  exec(path.join(python_dir, "pip") + " install firebolt-sdk retry",
+    function (error, stdout, stderr) {
       error == null ? on_success(python_dir) : on_error(error.message);
     }
   )
 }
 
 function start_db(python_dir, on_success, on_error) {
-  exec(path.join(python_dir, 'python') + ' ' + resolve_local_file('scripts/start_database.py') + ' ' + core.getInput('db_suffix'),
-    { env: fb_env },
-    function(error, stdout, stderr) {
-      error == null ? on_success(stdout.trim('\n'), python_dir) : on_error(error.message);
-    });
+  const result = spawnSync(path.join(python_dir, 'python'),
+    [resolve_local_file('scripts/start_database.py'), core.getInput('db_suffix')],
+    { env: fb_env }
+  );
+  return result.error == null ? on_success(result.stdout.toString().trim('\n'), python_dir) : on_error(result.error.message);
 }
 
 function start_engine(db_name, python_dir, on_success, on_error) {
-  exec(path.join(python_dir, 'python') + ' ' + resolve_local_file('scripts/start_engine.py') + ' ' + db_name,
-    { env: fb_env },
-    function(error, stdout, stderr) {
-      if (error != null) {
-        return on_error(error.message);
-      }
-      values = stdout.split(' ');
-      engine_name = values[0].trim('\n');
-      engine_url = values[1].trim('\n');
-      stopped_engine_name = values[2].trim('\n');
-      stopped_engine_url = values[3].trim('\n');
-      return on_success(engine_name, engine_url, stopped_engine_name, stopped_engine_url);
-    });
+  const result = spawnSync(path.join(python_dir, 'python'),
+    [resolve_local_file('scripts/start_engine.py'), db_name],
+    { env: fb_env }
+  );
+  if (result.error != null) {
+    return on_error(error.message);
+  }
+  const values = result.stdout.toString().split(' ');
+  const engine_name = values[0].trim('\n');
+  const engine_url = values[1].trim('\n');
+  const stopped_engine_name = values[2].trim('\n');
+  const stopped_engine_url = values[3].trim('\n');
+  return on_success(engine_name, engine_url, stopped_engine_name, stopped_engine_url);
 }
 
 try {
   setup_virtualenv(pp => {
     core.saveState('python_path', pp);
-    install_firebolt_sdk(pp,
+    install_python_dependencies(pp,
       pp => start_db(pp,
         (db_name, pp) => {
           core.setOutput('database_name', db_name);

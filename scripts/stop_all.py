@@ -5,10 +5,13 @@ from firebolt.common.settings import Settings
 from firebolt.model.engine import Engine
 from firebolt.service.manager import ResourceManager
 from firebolt.service.types import EngineStatusSummary
+from httpx import HTTPStatusError
+from retry import retry
 
 WAIT_SLEEP_SECONDS = 5
 
 
+@retry(HTTPStatusError, tries=3, delay=1, backoff=2)
 def engine_wait_stop(engine: Engine) -> None:
     engine.stop()
     while (
@@ -19,6 +22,7 @@ def engine_wait_stop(engine: Engine) -> None:
         engine = engine.get_latest()
 
 
+@retry(HTTPStatusError, tries=3, delay=1, backoff=2)
 def engine_wait_delete(engine: Engine, rm: ResourceManager) -> None:
     engine.delete()
     try:
