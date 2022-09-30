@@ -21,9 +21,9 @@ function resolve_local_file(file_path) {
 function setup_virtualenv(on_success, on_error) {
   spawnSync('rm', ['-r', resolve_local_file('.venv')])
   const result = spawnSync('python',
-    ['-m pip install virtualenv && python -m virtualenv ' + resolve_local_file('.venv')]);
+    ['-m virtualenv ' + resolve_local_file('.venv')]);
   if (result.error != null) {
-    return on_error(error.message)
+    return on_error(result.error.message)
   }
   const python_dir = path.join(resolve_local_file('.venv'), process.platform == 'win32' ? '/Scripts' : '/bin/');
   return on_success(python_dir)
