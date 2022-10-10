@@ -31,7 +31,7 @@ function setup_virtualenv(on_success, on_error) {
 }
 
 function install_python_dependencies(python_dir, on_success, on_error) {
-  exec(path.join(python_dir, "pip") + " install firebolt-sdk retry",
+  exec(path.join(python_dir, "pip") + " install firebolt-sdk==0.11.0 retry",
     function (error, stdout, stderr) {
       error == null ? on_success(python_dir) : on_error(error.message);
     }
