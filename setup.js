@@ -51,8 +51,8 @@ function start_engine(db_name, python_dir, on_success, on_error) {
     [resolve_local_file('scripts/start_engine.py'), db_name],
     { env: fb_env }
   );
-  if (result.error != null) {
-    return on_error(error.message);
+  if (result.stderr.toString().length != 0) {
+    return on_error(result.stderr.toString());
   }
   const values = result.stdout.toString().split(' ');
   const engine_name = values[0].trim('\n');
