@@ -36,7 +36,7 @@ def engine_wait_delete(engine: Engine, rm: ResourceManager) -> None:
 
 if __name__ == "__main__":
     rm = ResourceManager(Settings(auth=UsernamePassword(
-        environ["FIREBOLT_USER"], environ["FIREBOLT_PASSWORD"])))
+        environ["FIREBOLT_USER"], environ["FIREBOLT_PASSWORD"]), user=None, password=None))
 
     if len(argv) < 2:
         raise RuntimeError("database name argument  should be provided")

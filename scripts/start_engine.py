@@ -18,7 +18,7 @@ def get_cheapest_instance(rm: ResourceManager) -> str:
 
 if __name__ == "__main__":
     rm = ResourceManager(Settings(auth=UsernamePassword(
-        environ["FIREBOLT_USER"], environ["FIREBOLT_PASSWORD"])))
+        environ["FIREBOLT_USER"], environ["FIREBOLT_PASSWORD"]), user=None, password=None))
 
     if len(argv) < 2:
         raise RuntimeError("db_name argument should be provided")
