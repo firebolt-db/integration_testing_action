@@ -19,7 +19,7 @@ function resolve_local_file(file_path) {
 }
 
 function setup_virtualenv(on_success, on_error) {
-  exec('python -m pip install virtualenv && python -m virtualenv ' + resolve_local_file('.venv'),
+  exec('rm -r' + resolve_local_file('.venv') + ' || true && python -m pip install virtualenv && python -m virtualenv ' + resolve_local_file('.venv'),
     function (error, stdout, stderr) {
       if (error != null) {
         return on_error(error.message)
@@ -31,7 +31,7 @@ function setup_virtualenv(on_success, on_error) {
 }
 
 function install_python_dependencies(python_dir, on_success, on_error) {
-  exec(path.join(python_dir, "pip") + " install firebolt-sdk retry",
+  exec(path.join(python_dir, "pip") + " install firebolt-sdk==0.11.0 retry",
     function (error, stdout, stderr) {
       error == null ? on_success(python_dir) : on_error(error.message);
     }
@@ -51,8 +51,8 @@ function start_engine(db_name, python_dir, on_success, on_error) {
     [resolve_local_file('scripts/start_engine.py'), db_name],
     { env: fb_env }
   );
-  if (result.error != null) {
-    return on_error(error.message);
+  if (result.stderr.toString().length != 0) {
+    return on_error(result.stderr.toString());
   }
   const values = result.stdout.toString().split(' ');
   const engine_name = values[0].trim('\n');
