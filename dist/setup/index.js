@@ -2870,7 +2870,7 @@ function start_db(python_dir, on_success, on_error) {
     [resolve_local_file('scripts/start_database.py'), core.getInput('db_suffix')],
     { env: fb_env }
   );
-  return result.error == null ? on_success(result.stdout.toString().trim('\n'), python_dir) : on_error(result.error.message);
+  return result.stderr.toString().length == 0 ? on_success(result.stdout.toString().trim('\n'), python_dir) : on_error(result.stderr.toString());
 }
 
 function start_engine(db_name, python_dir, on_success, on_error) {
