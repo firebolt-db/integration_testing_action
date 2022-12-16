@@ -25,6 +25,10 @@ inputs:
     description: Suffix to add to db name
     default: ''
     required: false
+  engine-scale:
+    description: Engine scale
+    default: '1'
+    required: false
     
 outputs:
   database_name:
