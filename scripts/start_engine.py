@@ -10,7 +10,8 @@ def get_cheapest_instance(rm: ResourceManager) -> str:
     instance_list = rm.instance_types.instance_types
     # Filter out instances without storage
     instance_list = [
-        i for i in instance_list if i.storage_size_bytes and i.storage_size_bytes != "0"
+        i for i in instance_list if i.storage_size_bytes and i.storage_size_bytes != "0" and
+                                    i.price_per_hour_cents and i.price_per_hour_cents > 0
     ]
     cheapest = min(instance_list, key=lambda x: x.price_per_hour_cents)
     return cheapest
