@@ -1,7 +1,7 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 777:
+/***/ 351:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -28,7 +28,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.issue = exports.issueCommand = void 0;
 const os = __importStar(__nccwpck_require__(37));
-const utils_1 = __nccwpck_require__(855);
+const utils_1 = __nccwpck_require__(278);
 /**
  * Commands
  *
@@ -100,7 +100,7 @@ function escapeProperty(s) {
 
 /***/ }),
 
-/***/ 181:
+/***/ 186:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -135,12 +135,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getIDToken = exports.getState = exports.saveState = exports.group = exports.endGroup = exports.startGroup = exports.info = exports.notice = exports.warning = exports.error = exports.debug = exports.isDebug = exports.setFailed = exports.setCommandEcho = exports.setOutput = exports.getBooleanInput = exports.getMultilineInput = exports.getInput = exports.addPath = exports.setSecret = exports.exportVariable = exports.ExitCode = void 0;
-const command_1 = __nccwpck_require__(777);
-const file_command_1 = __nccwpck_require__(679);
-const utils_1 = __nccwpck_require__(855);
+const command_1 = __nccwpck_require__(351);
+const file_command_1 = __nccwpck_require__(717);
+const utils_1 = __nccwpck_require__(278);
 const os = __importStar(__nccwpck_require__(37));
 const path = __importStar(__nccwpck_require__(17));
-const oidc_utils_1 = __nccwpck_require__(266);
+const uuid_1 = __nccwpck_require__(840);
+const oidc_utils_1 = __nccwpck_require__(41);
 /**
  * The code to exit an action
  */
@@ -169,9 +170,20 @@ function exportVariable(name, val) {
     process.env[name] = convertedVal;
     const filePath = process.env['GITHUB_ENV'] || '';
     if (filePath) {
-        return file_command_1.issueFileCommand('ENV', file_command_1.prepareKeyValueMessage(name, val));
+        const delimiter = `ghadelimiter_${uuid_1.v4()}`;
+        // These should realistically never happen, but just in case someone finds a way to exploit uuid generation let's not allow keys or values that contain the delimiter.
+        if (name.includes(delimiter)) {
+            throw new Error(`Unexpected input: name should not contain the delimiter "${delimiter}"`);
+        }
+        if (convertedVal.includes(delimiter)) {
+            throw new Error(`Unexpected input: value should not contain the delimiter "${delimiter}"`);
+        }
+        const commandValue = `${name}<<${delimiter}${os.EOL}${convertedVal}${os.EOL}${delimiter}`;
+        file_command_1.issueCommand('ENV', commandValue);
     }
-    command_1.issueCommand('set-env', { name }, convertedVal);
+    else {
+        command_1.issueCommand('set-env', { name }, convertedVal);
+    }
 }
 exports.exportVariable = exportVariable;
 /**
@@ -189,7 +201,7 @@ exports.setSecret = setSecret;
 function addPath(inputPath) {
     const filePath = process.env['GITHUB_PATH'] || '';
     if (filePath) {
-        file_command_1.issueFileCommand('PATH', inputPath);
+        file_command_1.issueCommand('PATH', inputPath);
     }
     else {
         command_1.issueCommand('add-path', {}, inputPath);
@@ -229,10 +241,7 @@ function getMultilineInput(name, options) {
     const inputs = getInput(name, options)
         .split('\n')
         .filter(x => x !== '');
-    if (options && options.trimWhitespace === false) {
-        return inputs;
-    }
-    return inputs.map(input => input.trim());
+    return inputs;
 }
 exports.getMultilineInput = getMultilineInput;
 /**
@@ -265,12 +274,8 @@ exports.getBooleanInput = getBooleanInput;
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function setOutput(name, value) {
-    const filePath = process.env['GITHUB_OUTPUT'] || '';
-    if (filePath) {
-        return file_command_1.issueFileCommand('OUTPUT', file_command_1.prepareKeyValueMessage(name, value));
-    }
     process.stdout.write(os.EOL);
-    command_1.issueCommand('set-output', { name }, utils_1.toCommandValue(value));
+    command_1.issueCommand('set-output', { name }, value);
 }
 exports.setOutput = setOutput;
 /**
@@ -399,11 +404,7 @@ exports.group = group;
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function saveState(name, value) {
-    const filePath = process.env['GITHUB_STATE'] || '';
-    if (filePath) {
-        return file_command_1.issueFileCommand('STATE', file_command_1.prepareKeyValueMessage(name, value));
-    }
-    command_1.issueCommand('save-state', { name }, utils_1.toCommandValue(value));
+    command_1.issueCommand('save-state', { name }, value);
 }
 exports.saveState = saveState;
 /**
@@ -425,17 +426,17 @@ exports.getIDToken = getIDToken;
 /**
  * Summary exports
  */
-var summary_1 = __nccwpck_require__(154);
+var summary_1 = __nccwpck_require__(327);
 Object.defineProperty(exports, "summary", ({ enumerable: true, get: function () { return summary_1.summary; } }));
 /**
  * @deprecated use core.summary
  */
-var summary_2 = __nccwpck_require__(154);
+var summary_2 = __nccwpck_require__(327);
 Object.defineProperty(exports, "markdownSummary", ({ enumerable: true, get: function () { return summary_2.markdownSummary; } }));
 /**
  * Path exports
  */
-var path_utils_1 = __nccwpck_require__(605);
+var path_utils_1 = __nccwpck_require__(981);
 Object.defineProperty(exports, "toPosixPath", ({ enumerable: true, get: function () { return path_utils_1.toPosixPath; } }));
 Object.defineProperty(exports, "toWin32Path", ({ enumerable: true, get: function () { return path_utils_1.toWin32Path; } }));
 Object.defineProperty(exports, "toPlatformPath", ({ enumerable: true, get: function () { return path_utils_1.toPlatformPath; } }));
@@ -443,7 +444,7 @@ Object.defineProperty(exports, "toPlatformPath", ({ enumerable: true, get: funct
 
 /***/ }),
 
-/***/ 679:
+/***/ 717:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -469,14 +470,13 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.prepareKeyValueMessage = exports.issueFileCommand = void 0;
+exports.issueCommand = void 0;
 // We use any as a valid input type
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const fs = __importStar(__nccwpck_require__(147));
 const os = __importStar(__nccwpck_require__(37));
-const uuid_1 = __nccwpck_require__(53);
-const utils_1 = __nccwpck_require__(855);
-function issueFileCommand(command, message) {
+const utils_1 = __nccwpck_require__(278);
+function issueCommand(command, message) {
     const filePath = process.env[`GITHUB_${command}`];
     if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
@@ -488,27 +488,12 @@ function issueFileCommand(command, message) {
         encoding: 'utf8'
     });
 }
-exports.issueFileCommand = issueFileCommand;
-function prepareKeyValueMessage(key, value) {
-    const delimiter = `ghadelimiter_${uuid_1.v4()}`;
-    const convertedValue = utils_1.toCommandValue(value);
-    // These should realistically never happen, but just in case someone finds a
-    // way to exploit uuid generation let's not allow keys or values that contain
-    // the delimiter.
-    if (key.includes(delimiter)) {
-        throw new Error(`Unexpected input: name should not contain the delimiter "${delimiter}"`);
-    }
-    if (convertedValue.includes(delimiter)) {
-        throw new Error(`Unexpected input: value should not contain the delimiter "${delimiter}"`);
-    }
-    return `${key}<<${delimiter}${os.EOL}${convertedValue}${os.EOL}${delimiter}`;
-}
-exports.prepareKeyValueMessage = prepareKeyValueMessage;
+exports.issueCommand = issueCommand;
 //# sourceMappingURL=file-command.js.map
 
 /***/ }),
 
-/***/ 266:
+/***/ 41:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -524,9 +509,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.OidcClient = void 0;
-const http_client_1 = __nccwpck_require__(754);
-const auth_1 = __nccwpck_require__(475);
-const core_1 = __nccwpck_require__(181);
+const http_client_1 = __nccwpck_require__(255);
+const auth_1 = __nccwpck_require__(526);
+const core_1 = __nccwpck_require__(186);
 class OidcClient {
     static createHttpClient(allowRetry = true, maxRetry = 10) {
         const requestOptions = {
@@ -592,7 +577,7 @@ exports.OidcClient = OidcClient;
 
 /***/ }),
 
-/***/ 605:
+/***/ 981:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -657,7 +642,7 @@ exports.toPlatformPath = toPlatformPath;
 
 /***/ }),
 
-/***/ 154:
+/***/ 327:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -947,7 +932,7 @@ exports.summary = _summary;
 
 /***/ }),
 
-/***/ 855:
+/***/ 278:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
@@ -994,7 +979,7 @@ exports.toCommandProperties = toCommandProperties;
 
 /***/ }),
 
-/***/ 475:
+/***/ 526:
 /***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
@@ -1082,7 +1067,7 @@ exports.PersonalAccessTokenCredentialHandler = PersonalAccessTokenCredentialHand
 
 /***/ }),
 
-/***/ 754:
+/***/ 255:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -1120,8 +1105,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.HttpClient = exports.isHttps = exports.HttpClientResponse = exports.HttpClientError = exports.getProxyUrl = exports.MediaTypes = exports.Headers = exports.HttpCodes = void 0;
 const http = __importStar(__nccwpck_require__(685));
 const https = __importStar(__nccwpck_require__(687));
-const pm = __importStar(__nccwpck_require__(804));
-const tunnel = __importStar(__nccwpck_require__(586));
+const pm = __importStar(__nccwpck_require__(835));
+const tunnel = __importStar(__nccwpck_require__(294));
 var HttpCodes;
 (function (HttpCodes) {
     HttpCodes[HttpCodes["OK"] = 200] = "OK";
@@ -1694,7 +1679,7 @@ const lowercaseKeys = (obj) => Object.keys(obj).reduce((c, k) => ((c[k.toLowerCa
 
 /***/ }),
 
-/***/ 804:
+/***/ 835:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
@@ -1762,15 +1747,15 @@ exports.checkBypass = checkBypass;
 
 /***/ }),
 
-/***/ 586:
+/***/ 294:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-module.exports = __nccwpck_require__(526);
+module.exports = __nccwpck_require__(219);
 
 
 /***/ }),
 
-/***/ 526:
+/***/ 219:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -2042,7 +2027,7 @@ exports.debug = debug; // for test
 
 /***/ }),
 
-/***/ 53:
+/***/ 840:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -2106,29 +2091,29 @@ Object.defineProperty(exports, "parse", ({
   }
 }));
 
-var _v = _interopRequireDefault(__nccwpck_require__(258));
+var _v = _interopRequireDefault(__nccwpck_require__(628));
 
-var _v2 = _interopRequireDefault(__nccwpck_require__(140));
+var _v2 = _interopRequireDefault(__nccwpck_require__(409));
 
-var _v3 = _interopRequireDefault(__nccwpck_require__(36));
+var _v3 = _interopRequireDefault(__nccwpck_require__(122));
 
-var _v4 = _interopRequireDefault(__nccwpck_require__(309));
+var _v4 = _interopRequireDefault(__nccwpck_require__(120));
 
-var _nil = _interopRequireDefault(__nccwpck_require__(198));
+var _nil = _interopRequireDefault(__nccwpck_require__(332));
 
-var _version = _interopRequireDefault(__nccwpck_require__(936));
+var _version = _interopRequireDefault(__nccwpck_require__(595));
 
-var _validate = _interopRequireDefault(__nccwpck_require__(890));
+var _validate = _interopRequireDefault(__nccwpck_require__(900));
 
-var _stringify = _interopRequireDefault(__nccwpck_require__(204));
+var _stringify = _interopRequireDefault(__nccwpck_require__(950));
 
-var _parse = _interopRequireDefault(__nccwpck_require__(725));
+var _parse = _interopRequireDefault(__nccwpck_require__(746));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 /***/ }),
 
-/***/ 727:
+/***/ 569:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -2158,7 +2143,7 @@ exports["default"] = _default;
 
 /***/ }),
 
-/***/ 198:
+/***/ 332:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
@@ -2173,7 +2158,7 @@ exports["default"] = _default;
 
 /***/ }),
 
-/***/ 725:
+/***/ 746:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -2184,7 +2169,7 @@ Object.defineProperty(exports, "__esModule", ({
 }));
 exports["default"] = void 0;
 
-var _validate = _interopRequireDefault(__nccwpck_require__(890));
+var _validate = _interopRequireDefault(__nccwpck_require__(900));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -2225,7 +2210,7 @@ exports["default"] = _default;
 
 /***/ }),
 
-/***/ 765:
+/***/ 814:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
@@ -2240,7 +2225,7 @@ exports["default"] = _default;
 
 /***/ }),
 
-/***/ 422:
+/***/ 807:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -2271,7 +2256,7 @@ function rng() {
 
 /***/ }),
 
-/***/ 317:
+/***/ 274:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -2301,7 +2286,7 @@ exports["default"] = _default;
 
 /***/ }),
 
-/***/ 204:
+/***/ 950:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -2312,7 +2297,7 @@ Object.defineProperty(exports, "__esModule", ({
 }));
 exports["default"] = void 0;
 
-var _validate = _interopRequireDefault(__nccwpck_require__(890));
+var _validate = _interopRequireDefault(__nccwpck_require__(900));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -2347,7 +2332,7 @@ exports["default"] = _default;
 
 /***/ }),
 
-/***/ 258:
+/***/ 628:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -2358,9 +2343,9 @@ Object.defineProperty(exports, "__esModule", ({
 }));
 exports["default"] = void 0;
 
-var _rng = _interopRequireDefault(__nccwpck_require__(422));
+var _rng = _interopRequireDefault(__nccwpck_require__(807));
 
-var _stringify = _interopRequireDefault(__nccwpck_require__(204));
+var _stringify = _interopRequireDefault(__nccwpck_require__(950));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -2461,7 +2446,7 @@ exports["default"] = _default;
 
 /***/ }),
 
-/***/ 140:
+/***/ 409:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -2472,9 +2457,9 @@ Object.defineProperty(exports, "__esModule", ({
 }));
 exports["default"] = void 0;
 
-var _v = _interopRequireDefault(__nccwpck_require__(344));
+var _v = _interopRequireDefault(__nccwpck_require__(998));
 
-var _md = _interopRequireDefault(__nccwpck_require__(727));
+var _md = _interopRequireDefault(__nccwpck_require__(569));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -2484,7 +2469,7 @@ exports["default"] = _default;
 
 /***/ }),
 
-/***/ 344:
+/***/ 998:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -2496,9 +2481,9 @@ Object.defineProperty(exports, "__esModule", ({
 exports["default"] = _default;
 exports.URL = exports.DNS = void 0;
 
-var _stringify = _interopRequireDefault(__nccwpck_require__(204));
+var _stringify = _interopRequireDefault(__nccwpck_require__(950));
 
-var _parse = _interopRequireDefault(__nccwpck_require__(725));
+var _parse = _interopRequireDefault(__nccwpck_require__(746));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -2569,7 +2554,7 @@ function _default(name, version, hashfunc) {
 
 /***/ }),
 
-/***/ 36:
+/***/ 122:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -2580,9 +2565,9 @@ Object.defineProperty(exports, "__esModule", ({
 }));
 exports["default"] = void 0;
 
-var _rng = _interopRequireDefault(__nccwpck_require__(422));
+var _rng = _interopRequireDefault(__nccwpck_require__(807));
 
-var _stringify = _interopRequireDefault(__nccwpck_require__(204));
+var _stringify = _interopRequireDefault(__nccwpck_require__(950));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -2613,7 +2598,7 @@ exports["default"] = _default;
 
 /***/ }),
 
-/***/ 309:
+/***/ 120:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -2624,9 +2609,9 @@ Object.defineProperty(exports, "__esModule", ({
 }));
 exports["default"] = void 0;
 
-var _v = _interopRequireDefault(__nccwpck_require__(344));
+var _v = _interopRequireDefault(__nccwpck_require__(998));
 
-var _sha = _interopRequireDefault(__nccwpck_require__(317));
+var _sha = _interopRequireDefault(__nccwpck_require__(274));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -2636,7 +2621,7 @@ exports["default"] = _default;
 
 /***/ }),
 
-/***/ 890:
+/***/ 900:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -2647,7 +2632,7 @@ Object.defineProperty(exports, "__esModule", ({
 }));
 exports["default"] = void 0;
 
-var _regex = _interopRequireDefault(__nccwpck_require__(765));
+var _regex = _interopRequireDefault(__nccwpck_require__(814));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -2660,7 +2645,7 @@ exports["default"] = _default;
 
 /***/ }),
 
-/***/ 936:
+/***/ 595:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -2671,7 +2656,7 @@ Object.defineProperty(exports, "__esModule", ({
 }));
 exports["default"] = void 0;
 
-var _validate = _interopRequireDefault(__nccwpck_require__(890));
+var _validate = _interopRequireDefault(__nccwpck_require__(900));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -2825,17 +2810,18 @@ module.exports = require("util");
 var __webpack_exports__ = {};
 // This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
 (() => {
-const core = __nccwpck_require__(181);
+const core = __nccwpck_require__(186);
 const { exec, spawnSync } = __nccwpck_require__(81);
 const path = __nccwpck_require__(17);
 const fb_env = {
-  'FIREBOLT_USER': core.getInput('firebolt-username'),
-  'FIREBOLT_PASSWORD': core.getInput('firebolt-password'),
+  'FIREBOLT_CLIENT_ID': core.getInput('firebolt-client-id'),
+  'FIREBOLT_CLIENT_SECRET': core.getInput('firebolt-client-secret'),
   'FIREBOLT_SERVER': core.getInput('api-endpoint'),
-  'FIREBOLT_DEFAULT_REGION': core.getInput('region'),
+  'FIREBOLT_ACCOUNT': core.getInput('account'),
   'FIREBOLT_ENGINE_SPEC': core.getInput('instance-type'),
   'FIREBOLT_ENGINE_SCALE': core.getInput('engine-scale')
 }
+
 
 const action_workdir = path.join(__dirname, "../../")
 
@@ -2859,7 +2845,8 @@ function setup_virtualenv(on_success, on_error) {
 }
 
 function install_python_dependencies(python_dir, on_success, on_error) {
-  exec(path.join(python_dir, "pip") + " install firebolt-sdk>=0.16.0 retry",
+  // TODO: Set firebolt-sdk version as soon as new idenitity is released
+  exec(path.join(python_dir, "pip") + " install git+https://github.com/firebolt-db/firebolt-python-sdk.git retry",
     function (error, stdout, stderr) {
       error == null ? on_success(python_dir) : on_error(error.message);
     }
@@ -2871,7 +2858,7 @@ function start_db(python_dir, on_success, on_error) {
     [resolve_local_file('scripts/start_database.py'), core.getInput('db_suffix')],
     { env: fb_env }
   );
-  return result.stderr.toString().length == 0 ? on_success(result.stdout.toString().trim('\n'), python_dir) : on_error(result.stderr.toString());
+  return result.status == 0 ? on_success(result.stdout.toString().trim('\n'), python_dir) : on_error(result.stderr.toString());
 }
 
 function start_engine(db_name, python_dir, on_success, on_error) {
@@ -2879,7 +2866,7 @@ function start_engine(db_name, python_dir, on_success, on_error) {
     [resolve_local_file('scripts/start_engine.py'), db_name],
     { env: fb_env }
   );
-  if (result.stderr.toString().length != 0) {
+  if (result.status != 0) {
     return on_error(result.stderr.toString());
   }
   const values = result.stdout.toString().split(' ');

@@ -10,6 +10,7 @@ const fb_env = {
   'FIREBOLT_ENGINE_SCALE': core.getInput('engine-scale')
 }
 
+
 const action_workdir = path.join(__dirname, "../../")
 
 core.info("Action workdir: " + action_workdir)
@@ -33,7 +34,7 @@ function setup_virtualenv(on_success, on_error) {
 
 function install_python_dependencies(python_dir, on_success, on_error) {
   // TODO: Set firebolt-sdk version as soon as new idenitity is released
-  exec(path.join(python_dir, "pip") + " install https://github.com/firebolt-db/firebolt-python-sdk.git retry",
+  exec(path.join(python_dir, "pip") + " install git+https://github.com/firebolt-db/firebolt-python-sdk.git retry",
     function (error, stdout, stderr) {
       error == null ? on_success(python_dir) : on_error(error.message);
     }
@@ -45,7 +46,7 @@ function start_db(python_dir, on_success, on_error) {
     [resolve_local_file('scripts/start_database.py'), core.getInput('db_suffix')],
     { env: fb_env }
   );
-  return result.stderr.toString().length == 0 ? on_success(result.stdout.toString().trim('\n'), python_dir) : on_error(result.stderr.toString());
+  return result.status == 0 ? on_success(result.stdout.toString().trim('\n'), python_dir) : on_error(result.stderr.toString());
 }
 
 function start_engine(db_name, python_dir, on_success, on_error) {
@@ -53,7 +54,7 @@ function start_engine(db_name, python_dir, on_success, on_error) {
     [resolve_local_file('scripts/start_engine.py'), db_name],
     { env: fb_env }
   );
-  if (result.stderr.toString().length != 0) {
+  if (result.status != 0) {
     return on_error(result.stderr.toString());
   }
   const values = result.stdout.toString().split(' ');

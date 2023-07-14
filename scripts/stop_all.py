@@ -6,6 +6,7 @@ from firebolt.client.auth import ClientCredentials
 from firebolt.model.engine import Engine
 from firebolt.service.manager import ResourceManager
 from firebolt.service.types import EngineStatus
+from firebolt.utils.exception import EngineNotFoundError
 from httpx import HTTPStatusError
 from retry import retry
 
@@ -26,7 +27,7 @@ def engine_wait_delete(engine: Engine, rm: ResourceManager) -> None:
     try:
         while rm.engines.get(engine.name):
             sleep(WAIT_SLEEP_SECONDS)
-    except RuntimeError:  # Happens when we are unable to find the engine
+    except EngineNotFoundError:  # Happens when we are unable to find the engine
         pass
 
 
@@ -36,7 +37,8 @@ if __name__ == "__main__":
             environ["FIREBOLT_CLIENT_ID"],
             environ["FIREBOLT_CLIENT_SECRET"]
         ),
-        account=environ["FIREBOLT_ACCOUNT"]
+        account_name=environ["FIREBOLT_ACCOUNT"],
+        api_endpoint=environ["FIREBOLT_SERVER"]
     )
 
     if len(argv) < 2:
@@ -46,7 +48,7 @@ if __name__ == "__main__":
     for engine_name in (database_name, database_name + "_stopped"):
         try:
             engine = rm.engines.get(engine_name)
-        except RuntimeError as e:
+        except EngineNotFoundError as e:
             pass
         else:
             engine_wait_stop(engine)
