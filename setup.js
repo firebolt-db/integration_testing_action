@@ -2,10 +2,10 @@ const core = require('@actions/core');
 const { exec, spawnSync } = require("child_process");
 const path = require('path');
 const fb_env = {
-  'FIREBOLT_USER': core.getInput('firebolt-username'),
-  'FIREBOLT_PASSWORD': core.getInput('firebolt-password'),
+  'FIREBOLT_CLIENT_ID': core.getInput('firebolt-client-id'),
+  'FIREBOLT_CLIENT_SECRET': core.getInput('firebolt-client-secret'),
   'FIREBOLT_SERVER': core.getInput('api-endpoint'),
-  'FIREBOLT_DEFAULT_REGION': core.getInput('region'),
+  'FIREBOLT_ACCOUNT': core.getInput('account'),
   'FIREBOLT_ENGINE_SPEC': core.getInput('instance-type'),
   'FIREBOLT_ENGINE_SCALE': core.getInput('engine-scale')
 }
@@ -32,7 +32,8 @@ function setup_virtualenv(on_success, on_error) {
 }
 
 function install_python_dependencies(python_dir, on_success, on_error) {
-  exec(path.join(python_dir, "pip") + " install firebolt-sdk>=0.16.0 pydantic==1.10.10 retry",
+  // TODO: Set firebolt-sdk version as soon as new idenitity is released
+  exec(path.join(python_dir, "pip") + " install https://github.com/firebolt-db/firebolt-python-sdk.git retry",
     function (error, stdout, stderr) {
       error == null ? on_success(python_dir) : on_error(error.message);
     }

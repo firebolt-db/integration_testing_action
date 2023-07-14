@@ -2,11 +2,10 @@ from os import environ
 from sys import argv
 from time import sleep
 
-from firebolt.client.auth import UsernamePassword
-from firebolt.common.settings import Settings
+from firebolt.client.auth import ClientCredentials
 from firebolt.model.engine import Engine
 from firebolt.service.manager import ResourceManager
-from firebolt.service.types import EngineStatusSummary
+from firebolt.service.types import EngineStatus
 from httpx import HTTPStatusError
 from retry import retry
 
@@ -16,27 +15,29 @@ WAIT_SLEEP_SECONDS = 5
 @retry(HTTPStatusError, tries=3, delay=1, backoff=2)
 def engine_wait_stop(engine: Engine) -> None:
     engine.stop()
-    while (
-        engine.current_status_summary
-        != EngineStatusSummary.ENGINE_STATUS_SUMMARY_STOPPED
-    ):
+    while (engine.current_status!= EngineStatus.STOPPED):
         sleep(WAIT_SLEEP_SECONDS)
-        engine = engine.get_latest()
+        engine.refresh()
 
 
 @retry(HTTPStatusError, tries=3, delay=1, backoff=2)
 def engine_wait_delete(engine: Engine, rm: ResourceManager) -> None:
     engine.delete()
     try:
-        while rm.engines.get_by_name(engine.name):
+        while rm.engines.get(engine.name):
             sleep(WAIT_SLEEP_SECONDS)
-    except RuntimeError:  # Happend when we are unable to find the engine
+    except RuntimeError:  # Happens when we are unable to find the engine
         pass
 
 
 if __name__ == "__main__":
-    rm = ResourceManager(Settings(auth=UsernamePassword(
-        environ["FIREBOLT_USER"], environ["FIREBOLT_PASSWORD"]), user=None, password=None))
+    rm = ResourceManager(
+        auth=ClientCredentials(
+            environ["FIREBOLT_CLIENT_ID"],
+            environ["FIREBOLT_CLIENT_SECRET"]
+        ),
+        account=environ["FIREBOLT_ACCOUNT"]
+    )
 
     if len(argv) < 2:
         raise RuntimeError("database name argument  should be provided")
@@ -44,12 +45,10 @@ if __name__ == "__main__":
     # Deleting running and stopped engines
     for engine_name in (database_name, database_name + "_stopped"):
         try:
-            engine = rm.engines.get_by_name(engine_name)
+            engine = rm.engines.get(engine_name)
         except RuntimeError as e:
-            # Ignore non existing engine error, still need to drop the db
-            if "Record not found" not in str(e):
-                raise e
+            pass
         else:
             engine_wait_stop(engine)
             engine_wait_delete(engine, rm)
-    rm.databases.get_by_name(database_name).delete()
+    rm.databases.get(database_name).delete()

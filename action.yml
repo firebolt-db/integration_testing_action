@@ -3,11 +3,14 @@ description: >-
  Setup Firebolt database with the generated name. Then, setup an engine with the same
  name, which is attached to the created database
 inputs:
-  firebolt-username:
+  firebolt-client-id:
     description: Firebolt account username
     required: true
-  firebolt-password:
+  firebolt-client-id:
     description: Firebolt account password
+    required: true
+  account:
+    description: Account name
     required: true
   api-endpoint:
     description: Firebolt api address
@@ -17,6 +20,7 @@ inputs:
     description: In which region to create the database
     default: 'us-east-1'
     required: false
+    deprecationMessage: 'region parameter is not used anymore and will be removed in new versions'
   instance-type:
     description: Instance type of the running instance
     default: ''

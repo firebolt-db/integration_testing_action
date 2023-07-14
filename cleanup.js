@@ -2,10 +2,10 @@ const core = require('@actions/core');
 const { exec } = require("child_process");
 const path = require('path');
 const fb_env = {
-  'FIREBOLT_USER': core.getInput('firebolt-username'),
-  'FIREBOLT_PASSWORD': core.getInput('firebolt-password'),
+  'FIREBOLT_CLIENT_ID': core.getInput('firebolt-client-id'),
+  'FIREBOLT_CLIENT_SECRET': core.getInput('firebolt-client-secret'),
   'FIREBOLT_SERVER': core.getInput('api-endpoint'),
-  'FIREBOLT_DEFAULT_REGION': core.getInput('region')
+  'FIREBOLT_ACCOUNT': core.getInput('account'),
 }
 
 const action_workdir = path.join(__dirname, "../../")
