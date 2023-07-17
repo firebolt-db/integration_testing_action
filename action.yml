@@ -6,7 +6,7 @@ inputs:
   firebolt-client-id:
     description: Firebolt account username
     required: true
-  firebolt-client-id:
+  firebolt-client-secret:
     description: Firebolt account password
     required: true
   account:
