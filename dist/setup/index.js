@@ -138,6 +138,7 @@ exports.getIDToken = exports.getState = exports.saveState = exports.group = expo
 const command_1 = __nccwpck_require__(777);
 const file_command_1 = __nccwpck_require__(679);
 const utils_1 = __nccwpck_require__(855);
+const fs = __importStar(__nccwpck_require__(147));
 const os = __importStar(__nccwpck_require__(37));
 const path = __importStar(__nccwpck_require__(17));
 const oidc_utils_1 = __nccwpck_require__(266);
@@ -269,8 +270,7 @@ function setOutput(name, value) {
     if (filePath) {
         return file_command_1.issueFileCommand('OUTPUT', file_command_1.prepareKeyValueMessage(name, value));
     }
-    process.stdout.write(os.EOL);
-    command_1.issueCommand('set-output', { name }, utils_1.toCommandValue(value));
+    fs.appendFileSync(filePath, `${name}=${value}${os.EOL}`)
 }
 exports.setOutput = setOutput;
 /**
@@ -403,7 +403,7 @@ function saveState(name, value) {
     if (filePath) {
         return file_command_1.issueFileCommand('STATE', file_command_1.prepareKeyValueMessage(name, value));
     }
-    command_1.issueCommand('save-state', { name }, utils_1.toCommandValue(value));
+    fs.appendFileSync(filePath, `${name}=${value}`);
 }
 exports.saveState = saveState;
 /**
