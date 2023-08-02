@@ -27,7 +27,6 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.issue = exports.issueCommand = void 0;
-const fs = __importStar(__nccwpck_require__(147));
 const os = __importStar(__nccwpck_require__(37));
 const utils_1 = __nccwpck_require__(278);
 /**
@@ -267,6 +266,9 @@ function getBooleanInput(name, options) {
         `Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
 }
 exports.getBooleanInput = getBooleanInput;
+
+const fs = __importStar(__nccwpck_require__(147));
+
 /**
  * Sets the value of an output.
  *
