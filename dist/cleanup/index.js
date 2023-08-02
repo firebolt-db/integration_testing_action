@@ -278,7 +278,7 @@ function setOutput(name, value) {
     //process.stdout.write(os.EOL);
     const output = process.env['GITHUB_OUTPUT']
     //command_1.issueCommand('set-output', { name }, value);
-    fs.appendFileSync(output, `${key}=${value}${os.EOL}`)
+    fs.appendFileSync(output, `${name}=${value}${os.EOL}`)
 }
 exports.setOutput = setOutput;
 /**
@@ -409,7 +409,7 @@ exports.group = group;
 function saveState(name, value) {
     //command_1.issueCommand('save-state', { name }, value);
     const state = process.env['GITHUB_STATE']
-    fs.appendFileSync(state, `${key}=${value}`)
+    fs.appendFileSync(state, `${name}=${value}`)
 }
 exports.saveState = saveState;
 /**
