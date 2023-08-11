@@ -3,7 +3,7 @@ const { exec } = require("child_process");
 const path = require('path');
 const fb_env = {
   'FIREBOLT_USER': core.getInput('firebolt-username'),
-  'FIREBOLT_PASSWORD': core.getInput('firebolt-password'),
+  'FIREBOLT_PASSWORD': encodeURIComponent(core.getInput('firebolt-password')),
   'FIREBOLT_SERVER': core.getInput('api-endpoint'),
   'FIREBOLT_DEFAULT_REGION': core.getInput('region')
 }
