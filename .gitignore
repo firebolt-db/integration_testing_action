@@ -281,5 +281,3 @@ cython_debug/
 # Emacs
 *~
 \#*\#
-
-node_modules/*

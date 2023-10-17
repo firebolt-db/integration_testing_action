@@ -1,35 +1,27 @@
 const core = require('@actions/core');
-const { exec } = require("child_process");
-const path = require('path');
-const fb_env = {
-  'FIREBOLT_CLIENT_ID': core.getInput('firebolt-client-id'),
-  'FIREBOLT_CLIENT_SECRET': core.getInput('firebolt-client-secret'),
-  'FIREBOLT_SERVER': core.getInput('api-endpoint'),
-  'FIREBOLT_ACCOUNT': core.getInput('account'),
-}
+import { Firebolt } from 'firebolt-sdk';
 
-const action_workdir = path.join(__dirname, "../../")
+const firebolt = Firebolt();
+const connection = await firebolt.connect({
+  auth: {
+    client_id: process.env.FIREBOLT_CLIENT_ID,
+    client_secret: process.env.FIREBOLT_CLIENT_SECRET,
+  },
+  account: process.env.FIREBOLT_ACCOUNT,
+  database: process.env.FIREBOLT_DATABASE,
+  engineName: process.env.FIREBOLT_ENGINE_NAME
+});
 
-function resolve_local_file(file_path) {
-  return path.join(action_workdir, file_path)
-}
+const database_name = core.getState('database_name');
+const engine_name = database_name;
+const stopped_engine_name = database_name + "_stopped";
 
-function stop_all(db_name, on_success, on_error) {
-  python_bin = path.join(core.getState('python_path'), 'python');
-  exec(python_bin + ' ' + resolve_local_file('scripts/stop_all.py') + ' ' + db_name,
-    { env: fb_env },
-    function(error, stdout, stderr) {
-      error == null ? on_success(stdout) : on_error(error.message);
-    });
-}
+const engine = await firebolt.resourceManager.engine.getByName(engine_name);
+await engine.stop();
+await engine.delete();
 
-try {
-  stop_all(
-    core.getState('database_name'),
-    () => { },
-    errMsg => core.setFailed(errMsg)
-  )
+const stopped_engine = await firebolt.resourceManager.engine.getByName(stopped_engine_name);
+await stopped_engine.delete();
 
-} catch (error) {
-  core.setFailed(error.message);
-}
+const database = await firebolt.resourceManager.database.getByName(database_name);
+await database.delete();
