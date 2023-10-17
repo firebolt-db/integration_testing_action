@@ -7,7 +7,8 @@ const connection = await firebolt.connect({
     client_id: core.getInput('firebolt-client-id'),
     client_secret: core.getInput('firebolt-client-secret'),
   },
-  account: core.getInput('account')
+  account: core.getInput('account'),
+  engineEndpoint: core.getInput('api-endpoint')
 });
 
 const database_name = core.getState('database_name');
