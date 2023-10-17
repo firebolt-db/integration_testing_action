@@ -1,14 +1,13 @@
 const core = require('@actions/core');
 import { Firebolt } from 'firebolt-sdk';
 
-const firebolt = Firebolt();
+const firebolt = Firebolt({apiEndpoint: core.getInput('api-endpoint')});
 const connection = await firebolt.connect({
   auth: {
     client_id: core.getInput('firebolt-client-id'),
     client_secret: core.getInput('firebolt-client-secret'),
   },
-  account: core.getInput('account'),
-  engineEndpoint: core.getInput('api-endpoint')
+  account: core.getInput('account')
 });
 
 const database_name = core.getState('database_name');

@@ -11,14 +11,13 @@ __nccwpck_require__.r(__webpack_exports__);
 const core = __nccwpck_require__(2186);
 
 
-const firebolt = (0,firebolt_sdk__WEBPACK_IMPORTED_MODULE_0__/* .Firebolt */ .re)();
+const firebolt = (0,firebolt_sdk__WEBPACK_IMPORTED_MODULE_0__/* .Firebolt */ .re)({apiEndpoint: core.getInput('api-endpoint')});
 const connection = await firebolt.connect({
   auth: {
     client_id: core.getInput('firebolt-client-id'),
     client_secret: core.getInput('firebolt-client-secret'),
   },
-  account: core.getInput('account'),
-  engineEndpoint: core.getInput('api-endpoint')
+  account: core.getInput('account')
 });
 
 const database_name = core.getState('database_name');
