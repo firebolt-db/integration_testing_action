@@ -4,12 +4,10 @@ import { Firebolt } from 'firebolt-sdk';
 const firebolt = Firebolt();
 const connection = await firebolt.connect({
   auth: {
-    client_id: process.env.FIREBOLT_CLIENT_ID,
-    client_secret: process.env.FIREBOLT_CLIENT_SECRET,
+    client_id: core.getInput('firebolt-client-id'),
+    client_secret: core.getInput('firebolt-client-secret'),
   },
-  account: process.env.FIREBOLT_ACCOUNT,
-  database: process.env.FIREBOLT_DATABASE,
-  engineName: process.env.FIREBOLT_ENGINE_NAME
+  account: core.getInput('account')
 });
 
 const database_name = core.getState('database_name');
