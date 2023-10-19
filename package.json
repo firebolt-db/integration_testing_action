@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "bundle:setup": "rm -rf dist/setup && ncc build setup.js -o dist/setup",
-    "bundle:cleanup": "rm -rf dist/cleanup && ncc build cleanup.js -o dist/cleanup",
+    "bundle:setup": "rm -rf dist/setup && ncc build setup.js -a -o dist/setup",
+    "bundle:cleanup": "rm -rf dist/cleanup && ncc build cleanup.js -a -o dist/cleanup",
     "bundle": "npm run bundle:setup && npm run bundle:cleanup",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

@@ -45,13 +45,6 @@ outputs:
     description: Name of created engine in stopped state
   stopped_engine_url:
     description: Endpoint of created engine in stopped state
-  
-steps:
-- uses: actions/checkout@v3
-- uses: actions/setup-node@v3
-  with:
-    node-version: 18
-- run: npm ci
         
 runs:
   using: node16
