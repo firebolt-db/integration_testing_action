@@ -1,7 +1,9 @@
-import * as core from '@actions/core';
-import { Firebolt } from 'firebolt-sdk';
+const core = require('@actions/core');
+const sdk = require('firebolt-sdk');
+//import * as core from '@actions/core';
+//import { Firebolt } from 'firebolt-sdk';
 
-const firebolt = Firebolt({apiEndpoint: core.getInput('api-endpoint')});
+const firebolt = sdk.Firebolt({apiEndpoint: core.getInput('api-endpoint')});
 const connection = await firebolt.connect({
   auth: {
     client_id: core.getInput('firebolt-client-id'),
