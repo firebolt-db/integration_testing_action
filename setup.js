@@ -1,16 +1,16 @@
 const core = require('@actions/core');
 
 const instanceType = core.getInput('instance-type');
-const engineScale = core.getInput('engine-scale');
-const dbSuffix = core.getInput('db-suffix');
+const engineScale = parseInt(core.getInput('engine-scale'));
+const suffix = core.getInput('db_suffix').replaceAll(".", "").replaceAll("-", "");
 
-import { Firebolt } from 'firebolt-sdk';
+import {Firebolt} from 'firebolt-sdk';
 
 const firebolt = Firebolt({
     apiEndpoint: core.getInput('api-endpoint'),
 });
 
-firebolt.connect({
+await firebolt.connect({
     auth: {
         client_id: core.getInput('firebolt-client-id'),
         client_secret: core.getInput('firebolt-client-secret'),
@@ -18,9 +18,31 @@ firebolt.connect({
     account: core.getInput('account')
 });
 
-let dbName = `integration_testing_${dbSuffix}_${Date.now()}`;
+const databaseName = `integration_testing_${suffix}_${Date.now()}`;
+let database = await firebolt.resourceManager.database.create(databaseName);
 
-let database = firebolt.resourceManager.database.create(dbName);
-let engine = firebolt.resourceManager.engine.create(dbName, {scale: engineScale, spec: instanceType});
-firebolt.resourceManager.engine.attachToDatabase(engine, database);
-engine.start();
+core.setOutput('database_name', database.name);
+core.saveState('database_name', database.name);
+
+let engine = await firebolt.resourceManager.engine.create(databaseName, {
+    scale: engineScale,
+    spec: instanceType
+});
+await firebolt.resourceManager.engine.attachToDatabase(engine, database);
+
+const stoppedEngineName = databaseName + "_stopped"
+const stoppedEngine = await firebolt.resourceManager.engine.create(stoppedEngineName, {
+    scale: engineScale,
+    spec: instanceType
+});
+await firebolt.resourceManager.engine.attachToDatabase(stoppedEngine, database);
+
+await engine.start();
+
+core.setOutput('engine_name', engine.name);
+core.saveState('engine_name', engine.name);
+core.setOutput('engine_url', engine.endpoint);
+
+core.setOutput('stopped_engine_name', stoppedEngine.name);
+core.saveState('stopped_engine_name', stoppedEngine.name);
+core.setOutput('stopped_engine_url', stoppedEngine.endpoint);
