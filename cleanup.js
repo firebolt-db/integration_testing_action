@@ -17,12 +17,33 @@ const database_name = core.getState('database_name');
 const engine_name = core.getState('engine_name');
 const stopped_engine_name = core.getState('stopped_engine_name');
 
-const engine = await firebolt.resourceManager.engine.getByName(engine_name);
-await engine.stop();
-await engine.delete();
+let failed = false;
 
-const stopped_engine = await firebolt.resourceManager.engine.getByName(stopped_engine_name);
-await stopped_engine.delete();
+try {
+  const engine = await firebolt.resourceManager.engine.getByName(engine_name);
+  await engine.stop();
+  await engine.delete();
+} catch (e) {
+  failed = true;
+  core.info('failed to cleanup engine: ' + e);
+}
 
-const database = await firebolt.resourceManager.database.getByName(database_name);
-await database.delete();
+try {
+  const stopped_engine = await firebolt.resourceManager.engine.getByName(stopped_engine_name);
+  await stopped_engine.delete();
+} catch (e) {
+    failed = true;
+    core.info('failed to cleanup stopped engine: ' + e);
+}
+
+try {
+  const database = await firebolt.resourceManager.database.getByName(database_name);
+  await database.delete();
+} catch (e) {
+    failed = true;
+    core.info('failed to cleanup database: ' + e);
+}
+
+if (failed) {
+  core.setFailed('failed to cleanup resources');
+}
