@@ -4,9 +4,9 @@ from time import sleep
 
 from firebolt.client.auth import UsernamePassword
 from firebolt.common.settings import Settings
-from firebolt.model.V1.engine import Engine
+from firebolt.model.engine import Engine
 from firebolt.service.manager import ResourceManager
-from firebolt.service.V1.types import EngineStatusSummary
+from firebolt.service.types import EngineStatusSummary
 from httpx import HTTPStatusError
 from retry import retry
 
