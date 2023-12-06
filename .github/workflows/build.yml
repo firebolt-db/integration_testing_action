@@ -9,7 +9,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -23,4 +22,12 @@ jobs:
         run: npm install
 
       - name: Build project
-        run: npm run build
+        run: npm run bundle
+
+      - name: Check for changes
+        id: git_changes
+        run: echo ::set-output name=changes::$(git diff --name-only HEAD)
+
+      - name: Fail if the project was not built
+        if: steps.git_changes.outputs.changes != ''
+        run: echo "There are changes in git compared to HEAD"
