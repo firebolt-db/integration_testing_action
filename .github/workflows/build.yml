@@ -1,4 +1,4 @@
-name: Build
+name: Check if build is up to date
 
 on:
   push:
