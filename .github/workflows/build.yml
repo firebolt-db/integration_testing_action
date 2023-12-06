@@ -1,4 +1,4 @@
-name: Build
+name: Check if build is up to date
 
 on:
   push:
@@ -15,8 +15,8 @@ jobs:
         with:
           node-version: '20.x'
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install dependencies without pulling new versions
+        run: npm ci
 
       - name: Build project
         run: npm run bundle
