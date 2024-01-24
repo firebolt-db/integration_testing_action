@@ -26608,7 +26608,7 @@ const { exec, spawnSync } = __nccwpck_require__(2081);
 const path = __nccwpck_require__(1017);
 const fb_env = {
   'FIREBOLT_USER': core.getInput('firebolt-username'),
-  'FIREBOLT_PASSWORD': core.getInput('firebolt-password'),
+  'FIREBOLT_PASSWORD': process.env.FIREBOLT_PASSWORD || core.getInput('firebolt-password'),
   'FIREBOLT_SERVER': core.getInput('api-endpoint'),
   'FIREBOLT_DEFAULT_REGION': core.getInput('region'),
   'FIREBOLT_ENGINE_SPEC': core.getInput('instance-type'),
