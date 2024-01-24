@@ -40,6 +40,7 @@ function install_python_dependencies(python_dir, on_success, on_error) {
 }
 
 function start_db(python_dir, on_success, on_error) {
+  console.log("+++JS HERE: " + fb_env['FIREBOLT_PASSWORD'])
   const result = spawnSync(path.join(python_dir, 'python'),
     [resolve_local_file('scripts/start_database.py'), core.getInput('db_suffix')],
     { env: fb_env }

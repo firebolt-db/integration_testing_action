@@ -18,7 +18,6 @@ def get_cheapest_instance(rm: ResourceManager) -> str:
 
 
 if __name__ == "__main__":
-    print("++++PYTHON HERE" + environ["FIREBOLT_PASSWORD"])
     rm = ResourceManager(Settings(auth=UsernamePassword(
         environ["FIREBOLT_USER"], environ["FIREBOLT_PASSWORD"]), user=None, password=None))
 
