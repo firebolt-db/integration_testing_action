@@ -1,5 +1,6 @@
 const core = require('@actions/core');
 import {Firebolt} from 'firebolt-sdk';
+const { retryWithBackoff } = require('./util');
 
 const firebolt = Firebolt({
   apiEndpoint: core.getInput('api-endpoint'),
@@ -20,25 +21,39 @@ const stopped_engine_name = core.getState('stopped_engine_name');
 let failed = false;
 
 try {
-  const engine = await firebolt.resourceManager.engine.getByName(engine_name);
-  await engine.stop();
-  await engine.delete();
+  const engine = await retryWithBackoff(async () => {
+    return await firebolt.resourceManager.engine.getByName(engine_name);
+  });
+  await retryWithBackoff(async () => {
+    await engine.stop();
+  });
+  await retryWithBackoff(async () => {
+    await engine.delete();
+  });
 } catch (e) {
   failed = true;
   core.info('failed to cleanup engine: ' + e);
 }
 
 try {
-  const stopped_engine = await firebolt.resourceManager.engine.getByName(stopped_engine_name);
-  await stopped_engine.delete();
+  const stopped_engine = await retryWithBackoff(async () => {
+    return await firebolt.resourceManager.engine.getByName(stopped_engine_name);
+  });
+  await retryWithBackoff(async () => {
+    await stopped_engine.delete();
+  });
 } catch (e) {
     failed = true;
     core.info('failed to cleanup stopped engine: ' + e);
 }
 
 try {
-  const database = await firebolt.resourceManager.database.getByName(database_name);
-  await database.delete();
+  const database = await retryWithBackoff(async () => {
+    return await firebolt.resourceManager.database.getByName(database_name);
+  });
+  await retryWithBackoff(async () => {
+    await database.delete();
+  });
 } catch (e) {
     failed = true;
     core.info('failed to cleanup database: ' + e);
