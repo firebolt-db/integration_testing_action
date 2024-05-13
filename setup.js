@@ -4,7 +4,7 @@ const instanceType = core.getInput('instance-type');
 const engineScale = parseInt(core.getInput('engine-scale'));
 const suffix = core.getInput('db_suffix').replaceAll(".", "").replaceAll("-", "");
 
-import {Firebolt} from 'firebolt-sdk';
+import { Firebolt } from 'firebolt-sdk';
 const { retryWithBackoff } = require('./util');
 
 const firebolt = Firebolt({
@@ -18,6 +18,14 @@ await firebolt.connect({
     },
     account: core.getInput('account')
 });
+
+// Setting not user-facing settings
+if (core.getInput('engine-version')) {
+    console.log(`Setting engine version to ${core.getInput('engine-version')}`);
+    process.env.FB_INTERNAL_OPTIONS_ENGINE_VERSION = core.getInput('engine-version');
+} else {
+    console.log(`Using default engine version`);
+}
 
 const databaseName = `integration_testing_${suffix}_${Date.now()}`;
 const database = await retryWithBackoff(async () => {

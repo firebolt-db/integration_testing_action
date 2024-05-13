@@ -33,7 +33,11 @@ inputs:
     description: Engine scale
     default: '1'
     required: false
-    
+  engine-version:
+    description: Engine version
+    default: ''
+    required: false
+
 outputs:
   database_name:
     description: Name of created database
@@ -45,7 +49,7 @@ outputs:
     description: Name of created engine in stopped state
   stopped_engine_url:
     description: Endpoint of created engine in stopped state
-        
+
 runs:
   using: node16
   main: dist/setup/index.js
