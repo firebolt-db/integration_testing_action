@@ -140,6 +140,7 @@ const file_command_1 = __nccwpck_require__(717);
 const utils_1 = __nccwpck_require__(5278);
 const os = __importStar(__nccwpck_require__(2037));
 const path = __importStar(__nccwpck_require__(1017));
+const uuid_1 = __nccwpck_require__(5840);
 const oidc_utils_1 = __nccwpck_require__(8041);
 /**
  * The code to exit an action
@@ -169,9 +170,20 @@ function exportVariable(name, val) {
     process.env[name] = convertedVal;
     const filePath = process.env['GITHUB_ENV'] || '';
     if (filePath) {
-        return file_command_1.issueFileCommand('ENV', file_command_1.prepareKeyValueMessage(name, val));
+        const delimiter = `ghadelimiter_${uuid_1.v4()}`;
+        // These should realistically never happen, but just in case someone finds a way to exploit uuid generation let's not allow keys or values that contain the delimiter.
+        if (name.includes(delimiter)) {
+            throw new Error(`Unexpected input: name should not contain the delimiter "${delimiter}"`);
+        }
+        if (convertedVal.includes(delimiter)) {
+            throw new Error(`Unexpected input: value should not contain the delimiter "${delimiter}"`);
+        }
+        const commandValue = `${name}<<${delimiter}${os.EOL}${convertedVal}${os.EOL}${delimiter}`;
+        file_command_1.issueCommand('ENV', commandValue);
     }
-    command_1.issueCommand('set-env', { name }, convertedVal);
+    else {
+        command_1.issueCommand('set-env', { name }, convertedVal);
+    }
 }
 exports.exportVariable = exportVariable;
 /**
@@ -189,7 +201,7 @@ exports.setSecret = setSecret;
 function addPath(inputPath) {
     const filePath = process.env['GITHUB_PATH'] || '';
     if (filePath) {
-        file_command_1.issueFileCommand('PATH', inputPath);
+        file_command_1.issueCommand('PATH', inputPath);
     }
     else {
         command_1.issueCommand('add-path', {}, inputPath);
@@ -229,10 +241,7 @@ function getMultilineInput(name, options) {
     const inputs = getInput(name, options)
         .split('\n')
         .filter(x => x !== '');
-    if (options && options.trimWhitespace === false) {
-        return inputs;
-    }
-    return inputs.map(input => input.trim());
+    return inputs;
 }
 exports.getMultilineInput = getMultilineInput;
 /**
@@ -265,12 +274,8 @@ exports.getBooleanInput = getBooleanInput;
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function setOutput(name, value) {
-    const filePath = process.env['GITHUB_OUTPUT'] || '';
-    if (filePath) {
-        return file_command_1.issueFileCommand('OUTPUT', file_command_1.prepareKeyValueMessage(name, value));
-    }
     process.stdout.write(os.EOL);
-    command_1.issueCommand('set-output', { name }, utils_1.toCommandValue(value));
+    command_1.issueCommand('set-output', { name }, value);
 }
 exports.setOutput = setOutput;
 /**
@@ -399,11 +404,7 @@ exports.group = group;
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function saveState(name, value) {
-    const filePath = process.env['GITHUB_STATE'] || '';
-    if (filePath) {
-        return file_command_1.issueFileCommand('STATE', file_command_1.prepareKeyValueMessage(name, value));
-    }
-    command_1.issueCommand('save-state', { name }, utils_1.toCommandValue(value));
+    command_1.issueCommand('save-state', { name }, value);
 }
 exports.saveState = saveState;
 /**
@@ -469,14 +470,13 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.prepareKeyValueMessage = exports.issueFileCommand = void 0;
+exports.issueCommand = void 0;
 // We use any as a valid input type
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const fs = __importStar(__nccwpck_require__(7147));
 const os = __importStar(__nccwpck_require__(2037));
-const uuid_1 = __nccwpck_require__(5840);
 const utils_1 = __nccwpck_require__(5278);
-function issueFileCommand(command, message) {
+function issueCommand(command, message) {
     const filePath = process.env[`GITHUB_${command}`];
     if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
@@ -488,22 +488,7 @@ function issueFileCommand(command, message) {
         encoding: 'utf8'
     });
 }
-exports.issueFileCommand = issueFileCommand;
-function prepareKeyValueMessage(key, value) {
-    const delimiter = `ghadelimiter_${uuid_1.v4()}`;
-    const convertedValue = utils_1.toCommandValue(value);
-    // These should realistically never happen, but just in case someone finds a
-    // way to exploit uuid generation let's not allow keys or values that contain
-    // the delimiter.
-    if (key.includes(delimiter)) {
-        throw new Error(`Unexpected input: name should not contain the delimiter "${delimiter}"`);
-    }
-    if (convertedValue.includes(delimiter)) {
-        throw new Error(`Unexpected input: value should not contain the delimiter "${delimiter}"`);
-    }
-    return `${key}<<${delimiter}${os.EOL}${convertedValue}${os.EOL}${delimiter}`;
-}
-exports.prepareKeyValueMessage = prepareKeyValueMessage;
+exports.issueCommand = issueCommand;
 //# sourceMappingURL=file-command.js.map
 
 /***/ }),
@@ -1762,7 +1747,993 @@ exports.checkBypass = checkBypass;
 
 /***/ }),
 
-/***/ 1659:
+/***/ 4294:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+module.exports = __nccwpck_require__(4219);
+
+
+/***/ }),
+
+/***/ 4219:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+var net = __nccwpck_require__(1808);
+var tls = __nccwpck_require__(4404);
+var http = __nccwpck_require__(3685);
+var https = __nccwpck_require__(5687);
+var events = __nccwpck_require__(2361);
+var assert = __nccwpck_require__(9491);
+var util = __nccwpck_require__(3837);
+
+
+exports.httpOverHttp = httpOverHttp;
+exports.httpsOverHttp = httpsOverHttp;
+exports.httpOverHttps = httpOverHttps;
+exports.httpsOverHttps = httpsOverHttps;
+
+
+function httpOverHttp(options) {
+  var agent = new TunnelingAgent(options);
+  agent.request = http.request;
+  return agent;
+}
+
+function httpsOverHttp(options) {
+  var agent = new TunnelingAgent(options);
+  agent.request = http.request;
+  agent.createSocket = createSecureSocket;
+  agent.defaultPort = 443;
+  return agent;
+}
+
+function httpOverHttps(options) {
+  var agent = new TunnelingAgent(options);
+  agent.request = https.request;
+  return agent;
+}
+
+function httpsOverHttps(options) {
+  var agent = new TunnelingAgent(options);
+  agent.request = https.request;
+  agent.createSocket = createSecureSocket;
+  agent.defaultPort = 443;
+  return agent;
+}
+
+
+function TunnelingAgent(options) {
+  var self = this;
+  self.options = options || {};
+  self.proxyOptions = self.options.proxy || {};
+  self.maxSockets = self.options.maxSockets || http.Agent.defaultMaxSockets;
+  self.requests = [];
+  self.sockets = [];
+
+  self.on('free', function onFree(socket, host, port, localAddress) {
+    var options = toOptions(host, port, localAddress);
+    for (var i = 0, len = self.requests.length; i < len; ++i) {
+      var pending = self.requests[i];
+      if (pending.host === options.host && pending.port === options.port) {
+        // Detect the request to connect same origin server,
+        // reuse the connection.
+        self.requests.splice(i, 1);
+        pending.request.onSocket(socket);
+        return;
+      }
+    }
+    socket.destroy();
+    self.removeSocket(socket);
+  });
+}
+util.inherits(TunnelingAgent, events.EventEmitter);
+
+TunnelingAgent.prototype.addRequest = function addRequest(req, host, port, localAddress) {
+  var self = this;
+  var options = mergeOptions({request: req}, self.options, toOptions(host, port, localAddress));
+
+  if (self.sockets.length >= this.maxSockets) {
+    // We are over limit so we'll add it to the queue.
+    self.requests.push(options);
+    return;
+  }
+
+  // If we are under maxSockets create a new one.
+  self.createSocket(options, function(socket) {
+    socket.on('free', onFree);
+    socket.on('close', onCloseOrRemove);
+    socket.on('agentRemove', onCloseOrRemove);
+    req.onSocket(socket);
+
+    function onFree() {
+      self.emit('free', socket, options);
+    }
+
+    function onCloseOrRemove(err) {
+      self.removeSocket(socket);
+      socket.removeListener('free', onFree);
+      socket.removeListener('close', onCloseOrRemove);
+      socket.removeListener('agentRemove', onCloseOrRemove);
+    }
+  });
+};
+
+TunnelingAgent.prototype.createSocket = function createSocket(options, cb) {
+  var self = this;
+  var placeholder = {};
+  self.sockets.push(placeholder);
+
+  var connectOptions = mergeOptions({}, self.proxyOptions, {
+    method: 'CONNECT',
+    path: options.host + ':' + options.port,
+    agent: false,
+    headers: {
+      host: options.host + ':' + options.port
+    }
+  });
+  if (options.localAddress) {
+    connectOptions.localAddress = options.localAddress;
+  }
+  if (connectOptions.proxyAuth) {
+    connectOptions.headers = connectOptions.headers || {};
+    connectOptions.headers['Proxy-Authorization'] = 'Basic ' +
+        new Buffer(connectOptions.proxyAuth).toString('base64');
+  }
+
+  debug('making CONNECT request');
+  var connectReq = self.request(connectOptions);
+  connectReq.useChunkedEncodingByDefault = false; // for v0.6
+  connectReq.once('response', onResponse); // for v0.6
+  connectReq.once('upgrade', onUpgrade);   // for v0.6
+  connectReq.once('connect', onConnect);   // for v0.7 or later
+  connectReq.once('error', onError);
+  connectReq.end();
+
+  function onResponse(res) {
+    // Very hacky. This is necessary to avoid http-parser leaks.
+    res.upgrade = true;
+  }
+
+  function onUpgrade(res, socket, head) {
+    // Hacky.
+    process.nextTick(function() {
+      onConnect(res, socket, head);
+    });
+  }
+
+  function onConnect(res, socket, head) {
+    connectReq.removeAllListeners();
+    socket.removeAllListeners();
+
+    if (res.statusCode !== 200) {
+      debug('tunneling socket could not be established, statusCode=%d',
+        res.statusCode);
+      socket.destroy();
+      var error = new Error('tunneling socket could not be established, ' +
+        'statusCode=' + res.statusCode);
+      error.code = 'ECONNRESET';
+      options.request.emit('error', error);
+      self.removeSocket(placeholder);
+      return;
+    }
+    if (head.length > 0) {
+      debug('got illegal response body from proxy');
+      socket.destroy();
+      var error = new Error('got illegal response body from proxy');
+      error.code = 'ECONNRESET';
+      options.request.emit('error', error);
+      self.removeSocket(placeholder);
+      return;
+    }
+    debug('tunneling connection has established');
+    self.sockets[self.sockets.indexOf(placeholder)] = socket;
+    return cb(socket);
+  }
+
+  function onError(cause) {
+    connectReq.removeAllListeners();
+
+    debug('tunneling socket could not be established, cause=%s\n',
+          cause.message, cause.stack);
+    var error = new Error('tunneling socket could not be established, ' +
+                          'cause=' + cause.message);
+    error.code = 'ECONNRESET';
+    options.request.emit('error', error);
+    self.removeSocket(placeholder);
+  }
+};
+
+TunnelingAgent.prototype.removeSocket = function removeSocket(socket) {
+  var pos = this.sockets.indexOf(socket)
+  if (pos === -1) {
+    return;
+  }
+  this.sockets.splice(pos, 1);
+
+  var pending = this.requests.shift();
+  if (pending) {
+    // If we have pending requests and a socket gets closed a new one
+    // needs to be created to take over in the pool for the one that closed.
+    this.createSocket(pending, function(socket) {
+      pending.request.onSocket(socket);
+    });
+  }
+};
+
+function createSecureSocket(options, cb) {
+  var self = this;
+  TunnelingAgent.prototype.createSocket.call(self, options, function(socket) {
+    var hostHeader = options.request.getHeader('host');
+    var tlsOptions = mergeOptions({}, self.options, {
+      socket: socket,
+      servername: hostHeader ? hostHeader.replace(/:.*$/, '') : options.host
+    });
+
+    // 0 is dummy port for v0.6
+    var secureSocket = tls.connect(0, tlsOptions);
+    self.sockets[self.sockets.indexOf(socket)] = secureSocket;
+    cb(secureSocket);
+  });
+}
+
+
+function toOptions(host, port, localAddress) {
+  if (typeof host === 'string') { // since v0.10
+    return {
+      host: host,
+      port: port,
+      localAddress: localAddress
+    };
+  }
+  return host; // for v0.11 or later
+}
+
+function mergeOptions(target) {
+  for (var i = 1, len = arguments.length; i < len; ++i) {
+    var overrides = arguments[i];
+    if (typeof overrides === 'object') {
+      var keys = Object.keys(overrides);
+      for (var j = 0, keyLen = keys.length; j < keyLen; ++j) {
+        var k = keys[j];
+        if (overrides[k] !== undefined) {
+          target[k] = overrides[k];
+        }
+      }
+    }
+  }
+  return target;
+}
+
+
+var debug;
+if (process.env.NODE_DEBUG && /\btunnel\b/.test(process.env.NODE_DEBUG)) {
+  debug = function() {
+    var args = Array.prototype.slice.call(arguments);
+    if (typeof args[0] === 'string') {
+      args[0] = 'TUNNEL: ' + args[0];
+    } else {
+      args.unshift('TUNNEL:');
+    }
+    console.error.apply(console, args);
+  }
+} else {
+  debug = function() {};
+}
+exports.debug = debug; // for test
+
+
+/***/ }),
+
+/***/ 5840:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+Object.defineProperty(exports, "v1", ({
+  enumerable: true,
+  get: function () {
+    return _v.default;
+  }
+}));
+Object.defineProperty(exports, "v3", ({
+  enumerable: true,
+  get: function () {
+    return _v2.default;
+  }
+}));
+Object.defineProperty(exports, "v4", ({
+  enumerable: true,
+  get: function () {
+    return _v3.default;
+  }
+}));
+Object.defineProperty(exports, "v5", ({
+  enumerable: true,
+  get: function () {
+    return _v4.default;
+  }
+}));
+Object.defineProperty(exports, "NIL", ({
+  enumerable: true,
+  get: function () {
+    return _nil.default;
+  }
+}));
+Object.defineProperty(exports, "version", ({
+  enumerable: true,
+  get: function () {
+    return _version.default;
+  }
+}));
+Object.defineProperty(exports, "validate", ({
+  enumerable: true,
+  get: function () {
+    return _validate.default;
+  }
+}));
+Object.defineProperty(exports, "stringify", ({
+  enumerable: true,
+  get: function () {
+    return _stringify.default;
+  }
+}));
+Object.defineProperty(exports, "parse", ({
+  enumerable: true,
+  get: function () {
+    return _parse.default;
+  }
+}));
+
+var _v = _interopRequireDefault(__nccwpck_require__(8628));
+
+var _v2 = _interopRequireDefault(__nccwpck_require__(6409));
+
+var _v3 = _interopRequireDefault(__nccwpck_require__(5122));
+
+var _v4 = _interopRequireDefault(__nccwpck_require__(9120));
+
+var _nil = _interopRequireDefault(__nccwpck_require__(5332));
+
+var _version = _interopRequireDefault(__nccwpck_require__(1595));
+
+var _validate = _interopRequireDefault(__nccwpck_require__(6900));
+
+var _stringify = _interopRequireDefault(__nccwpck_require__(8950));
+
+var _parse = _interopRequireDefault(__nccwpck_require__(2746));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+/***/ }),
+
+/***/ 4569:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+
+var _crypto = _interopRequireDefault(__nccwpck_require__(6113));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function md5(bytes) {
+  if (Array.isArray(bytes)) {
+    bytes = Buffer.from(bytes);
+  } else if (typeof bytes === 'string') {
+    bytes = Buffer.from(bytes, 'utf8');
+  }
+
+  return _crypto.default.createHash('md5').update(bytes).digest();
+}
+
+var _default = md5;
+exports["default"] = _default;
+
+/***/ }),
+
+/***/ 5332:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _default = '00000000-0000-0000-0000-000000000000';
+exports["default"] = _default;
+
+/***/ }),
+
+/***/ 2746:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+
+var _validate = _interopRequireDefault(__nccwpck_require__(6900));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function parse(uuid) {
+  if (!(0, _validate.default)(uuid)) {
+    throw TypeError('Invalid UUID');
+  }
+
+  let v;
+  const arr = new Uint8Array(16); // Parse ########-....-....-....-............
+
+  arr[0] = (v = parseInt(uuid.slice(0, 8), 16)) >>> 24;
+  arr[1] = v >>> 16 & 0xff;
+  arr[2] = v >>> 8 & 0xff;
+  arr[3] = v & 0xff; // Parse ........-####-....-....-............
+
+  arr[4] = (v = parseInt(uuid.slice(9, 13), 16)) >>> 8;
+  arr[5] = v & 0xff; // Parse ........-....-####-....-............
+
+  arr[6] = (v = parseInt(uuid.slice(14, 18), 16)) >>> 8;
+  arr[7] = v & 0xff; // Parse ........-....-....-####-............
+
+  arr[8] = (v = parseInt(uuid.slice(19, 23), 16)) >>> 8;
+  arr[9] = v & 0xff; // Parse ........-....-....-....-############
+  // (Use "/" to avoid 32-bit truncation when bit-shifting high-order bytes)
+
+  arr[10] = (v = parseInt(uuid.slice(24, 36), 16)) / 0x10000000000 & 0xff;
+  arr[11] = v / 0x100000000 & 0xff;
+  arr[12] = v >>> 24 & 0xff;
+  arr[13] = v >>> 16 & 0xff;
+  arr[14] = v >>> 8 & 0xff;
+  arr[15] = v & 0xff;
+  return arr;
+}
+
+var _default = parse;
+exports["default"] = _default;
+
+/***/ }),
+
+/***/ 814:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+var _default = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|00000000-0000-0000-0000-000000000000)$/i;
+exports["default"] = _default;
+
+/***/ }),
+
+/***/ 807:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = rng;
+
+var _crypto = _interopRequireDefault(__nccwpck_require__(6113));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+const rnds8Pool = new Uint8Array(256); // # of random values to pre-allocate
+
+let poolPtr = rnds8Pool.length;
+
+function rng() {
+  if (poolPtr > rnds8Pool.length - 16) {
+    _crypto.default.randomFillSync(rnds8Pool);
+
+    poolPtr = 0;
+  }
+
+  return rnds8Pool.slice(poolPtr, poolPtr += 16);
+}
+
+/***/ }),
+
+/***/ 5274:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+
+var _crypto = _interopRequireDefault(__nccwpck_require__(6113));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function sha1(bytes) {
+  if (Array.isArray(bytes)) {
+    bytes = Buffer.from(bytes);
+  } else if (typeof bytes === 'string') {
+    bytes = Buffer.from(bytes, 'utf8');
+  }
+
+  return _crypto.default.createHash('sha1').update(bytes).digest();
+}
+
+var _default = sha1;
+exports["default"] = _default;
+
+/***/ }),
+
+/***/ 8950:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+
+var _validate = _interopRequireDefault(__nccwpck_require__(6900));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+/**
+ * Convert array of 16 byte values to UUID string format of the form:
+ * XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
+ */
+const byteToHex = [];
+
+for (let i = 0; i < 256; ++i) {
+  byteToHex.push((i + 0x100).toString(16).substr(1));
+}
+
+function stringify(arr, offset = 0) {
+  // Note: Be careful editing this code!  It's been tuned for performance
+  // and works in ways you may not expect. See https://github.com/uuidjs/uuid/pull/434
+  const uuid = (byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + '-' + byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + '-' + byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + '-' + byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + '-' + byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] + byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]]).toLowerCase(); // Consistency check for valid UUID.  If this throws, it's likely due to one
+  // of the following:
+  // - One or more input array values don't map to a hex octet (leading to
+  // "undefined" in the uuid)
+  // - Invalid input values for the RFC `version` or `variant` fields
+
+  if (!(0, _validate.default)(uuid)) {
+    throw TypeError('Stringified UUID is invalid');
+  }
+
+  return uuid;
+}
+
+var _default = stringify;
+exports["default"] = _default;
+
+/***/ }),
+
+/***/ 8628:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+
+var _rng = _interopRequireDefault(__nccwpck_require__(807));
+
+var _stringify = _interopRequireDefault(__nccwpck_require__(8950));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// **`v1()` - Generate time-based UUID**
+//
+// Inspired by https://github.com/LiosK/UUID.js
+// and http://docs.python.org/library/uuid.html
+let _nodeId;
+
+let _clockseq; // Previous uuid creation time
+
+
+let _lastMSecs = 0;
+let _lastNSecs = 0; // See https://github.com/uuidjs/uuid for API details
+
+function v1(options, buf, offset) {
+  let i = buf && offset || 0;
+  const b = buf || new Array(16);
+  options = options || {};
+  let node = options.node || _nodeId;
+  let clockseq = options.clockseq !== undefined ? options.clockseq : _clockseq; // node and clockseq need to be initialized to random values if they're not
+  // specified.  We do this lazily to minimize issues related to insufficient
+  // system entropy.  See #189
+
+  if (node == null || clockseq == null) {
+    const seedBytes = options.random || (options.rng || _rng.default)();
+
+    if (node == null) {
+      // Per 4.5, create and 48-bit node id, (47 random bits + multicast bit = 1)
+      node = _nodeId = [seedBytes[0] | 0x01, seedBytes[1], seedBytes[2], seedBytes[3], seedBytes[4], seedBytes[5]];
+    }
+
+    if (clockseq == null) {
+      // Per 4.2.2, randomize (14 bit) clockseq
+      clockseq = _clockseq = (seedBytes[6] << 8 | seedBytes[7]) & 0x3fff;
+    }
+  } // UUID timestamps are 100 nano-second units since the Gregorian epoch,
+  // (1582-10-15 00:00).  JSNumbers aren't precise enough for this, so
+  // time is handled internally as 'msecs' (integer milliseconds) and 'nsecs'
+  // (100-nanoseconds offset from msecs) since unix epoch, 1970-01-01 00:00.
+
+
+  let msecs = options.msecs !== undefined ? options.msecs : Date.now(); // Per 4.2.1.2, use count of uuid's generated during the current clock
+  // cycle to simulate higher resolution clock
+
+  let nsecs = options.nsecs !== undefined ? options.nsecs : _lastNSecs + 1; // Time since last uuid creation (in msecs)
+
+  const dt = msecs - _lastMSecs + (nsecs - _lastNSecs) / 10000; // Per 4.2.1.2, Bump clockseq on clock regression
+
+  if (dt < 0 && options.clockseq === undefined) {
+    clockseq = clockseq + 1 & 0x3fff;
+  } // Reset nsecs if clock regresses (new clockseq) or we've moved onto a new
+  // time interval
+
+
+  if ((dt < 0 || msecs > _lastMSecs) && options.nsecs === undefined) {
+    nsecs = 0;
+  } // Per 4.2.1.2 Throw error if too many uuids are requested
+
+
+  if (nsecs >= 10000) {
+    throw new Error("uuid.v1(): Can't create more than 10M uuids/sec");
+  }
+
+  _lastMSecs = msecs;
+  _lastNSecs = nsecs;
+  _clockseq = clockseq; // Per 4.1.4 - Convert from unix epoch to Gregorian epoch
+
+  msecs += 12219292800000; // `time_low`
+
+  const tl = ((msecs & 0xfffffff) * 10000 + nsecs) % 0x100000000;
+  b[i++] = tl >>> 24 & 0xff;
+  b[i++] = tl >>> 16 & 0xff;
+  b[i++] = tl >>> 8 & 0xff;
+  b[i++] = tl & 0xff; // `time_mid`
+
+  const tmh = msecs / 0x100000000 * 10000 & 0xfffffff;
+  b[i++] = tmh >>> 8 & 0xff;
+  b[i++] = tmh & 0xff; // `time_high_and_version`
+
+  b[i++] = tmh >>> 24 & 0xf | 0x10; // include version
+
+  b[i++] = tmh >>> 16 & 0xff; // `clock_seq_hi_and_reserved` (Per 4.2.2 - include variant)
+
+  b[i++] = clockseq >>> 8 | 0x80; // `clock_seq_low`
+
+  b[i++] = clockseq & 0xff; // `node`
+
+  for (let n = 0; n < 6; ++n) {
+    b[i + n] = node[n];
+  }
+
+  return buf || (0, _stringify.default)(b);
+}
+
+var _default = v1;
+exports["default"] = _default;
+
+/***/ }),
+
+/***/ 6409:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+
+var _v = _interopRequireDefault(__nccwpck_require__(5998));
+
+var _md = _interopRequireDefault(__nccwpck_require__(4569));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+const v3 = (0, _v.default)('v3', 0x30, _md.default);
+var _default = v3;
+exports["default"] = _default;
+
+/***/ }),
+
+/***/ 5998:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = _default;
+exports.URL = exports.DNS = void 0;
+
+var _stringify = _interopRequireDefault(__nccwpck_require__(8950));
+
+var _parse = _interopRequireDefault(__nccwpck_require__(2746));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function stringToBytes(str) {
+  str = unescape(encodeURIComponent(str)); // UTF8 escape
+
+  const bytes = [];
+
+  for (let i = 0; i < str.length; ++i) {
+    bytes.push(str.charCodeAt(i));
+  }
+
+  return bytes;
+}
+
+const DNS = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
+exports.DNS = DNS;
+const URL = '6ba7b811-9dad-11d1-80b4-00c04fd430c8';
+exports.URL = URL;
+
+function _default(name, version, hashfunc) {
+  function generateUUID(value, namespace, buf, offset) {
+    if (typeof value === 'string') {
+      value = stringToBytes(value);
+    }
+
+    if (typeof namespace === 'string') {
+      namespace = (0, _parse.default)(namespace);
+    }
+
+    if (namespace.length !== 16) {
+      throw TypeError('Namespace must be array-like (16 iterable integer values, 0-255)');
+    } // Compute hash of namespace and value, Per 4.3
+    // Future: Use spread syntax when supported on all platforms, e.g. `bytes =
+    // hashfunc([...namespace, ... value])`
+
+
+    let bytes = new Uint8Array(16 + value.length);
+    bytes.set(namespace);
+    bytes.set(value, namespace.length);
+    bytes = hashfunc(bytes);
+    bytes[6] = bytes[6] & 0x0f | version;
+    bytes[8] = bytes[8] & 0x3f | 0x80;
+
+    if (buf) {
+      offset = offset || 0;
+
+      for (let i = 0; i < 16; ++i) {
+        buf[offset + i] = bytes[i];
+      }
+
+      return buf;
+    }
+
+    return (0, _stringify.default)(bytes);
+  } // Function#name is not settable on some platforms (#270)
+
+
+  try {
+    generateUUID.name = name; // eslint-disable-next-line no-empty
+  } catch (err) {} // For CommonJS default export support
+
+
+  generateUUID.DNS = DNS;
+  generateUUID.URL = URL;
+  return generateUUID;
+}
+
+/***/ }),
+
+/***/ 5122:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+
+var _rng = _interopRequireDefault(__nccwpck_require__(807));
+
+var _stringify = _interopRequireDefault(__nccwpck_require__(8950));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function v4(options, buf, offset) {
+  options = options || {};
+
+  const rnds = options.random || (options.rng || _rng.default)(); // Per 4.4, set bits for version and `clock_seq_hi_and_reserved`
+
+
+  rnds[6] = rnds[6] & 0x0f | 0x40;
+  rnds[8] = rnds[8] & 0x3f | 0x80; // Copy bytes to buffer, if provided
+
+  if (buf) {
+    offset = offset || 0;
+
+    for (let i = 0; i < 16; ++i) {
+      buf[offset + i] = rnds[i];
+    }
+
+    return buf;
+  }
+
+  return (0, _stringify.default)(rnds);
+}
+
+var _default = v4;
+exports["default"] = _default;
+
+/***/ }),
+
+/***/ 9120:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+
+var _v = _interopRequireDefault(__nccwpck_require__(5998));
+
+var _sha = _interopRequireDefault(__nccwpck_require__(5274));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+const v5 = (0, _v.default)('v5', 0x50, _sha.default);
+var _default = v5;
+exports["default"] = _default;
+
+/***/ }),
+
+/***/ 6900:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+
+var _regex = _interopRequireDefault(__nccwpck_require__(814));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function validate(uuid) {
+  return typeof uuid === 'string' && _regex.default.test(uuid);
+}
+
+var _default = validate;
+exports["default"] = _default;
+
+/***/ }),
+
+/***/ 1595:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports["default"] = void 0;
+
+var _validate = _interopRequireDefault(__nccwpck_require__(6900));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function version(uuid) {
+  if (!(0, _validate.default)(uuid)) {
+    throw TypeError('Invalid UUID');
+  }
+
+  return parseInt(uuid.substr(14, 1), 16);
+}
+
+var _default = version;
+exports["default"] = _default;
+
+/***/ }),
+
+/***/ 2602:
+/***/ ((module, __webpack_exports__, __nccwpck_require__) => {
+
+"use strict";
+__nccwpck_require__.a(module, async (__webpack_handle_async_dependencies__, __webpack_async_result__) => { try {
+__nccwpck_require__.r(__webpack_exports__);
+/* harmony import */ var firebolt_sdk__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(6671);
+const core = __nccwpck_require__(2186);
+
+const instanceType = core.getInput('instance-type');
+const engineScale = parseInt(core.getInput('engine-scale'));
+const suffix = core.getInput('db_suffix').replaceAll(".", "").replaceAll("-", "");
+
+
+
+const firebolt = (0,firebolt_sdk__WEBPACK_IMPORTED_MODULE_0__/* .Firebolt */ .re)({
+    apiEndpoint: core.getInput('api-endpoint'),
+});
+
+await firebolt.connect({
+    auth: {
+        client_id: core.getInput('firebolt-client-id'),
+        client_secret: core.getInput('firebolt-client-secret'),
+    },
+    account: core.getInput('account')
+});
+
+const databaseName = `integration_testing_${suffix}_${Date.now()}`;
+let database = await firebolt.resourceManager.database.create(databaseName);
+
+core.setOutput('database_name', database.name);
+core.saveState('database_name', database.name);
+
+let engine = await firebolt.resourceManager.engine.create(databaseName, {
+    scale: engineScale,
+    spec: instanceType
+});
+await firebolt.resourceManager.engine.attachToDatabase(engine, database);
+
+const stoppedEngineName = databaseName + "_stopped"
+const stoppedEngine = await firebolt.resourceManager.engine.create(stoppedEngineName, {
+    scale: engineScale,
+    spec: instanceType
+});
+await firebolt.resourceManager.engine.attachToDatabase(stoppedEngine, database);
+
+await engine.start();
+
+core.setOutput('engine_name', engine.name);
+core.saveState('engine_name', engine.name);
+core.setOutput('engine_url', engine.endpoint);
+
+core.setOutput('stopped_engine_name', stoppedEngine.name);
+core.saveState('stopped_engine_name', stoppedEngine.name);
+core.setOutput('stopped_engine_url', stoppedEngine.endpoint);
+__webpack_async_result__();
+} catch(e) { __webpack_async_result__(e); } }, 1);
+
+/***/ }),
+
+/***/ 2680:
 /***/ ((module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -1774,7 +2745,7 @@ exports.checkBypass = checkBypass;
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 
-var eventTargetShim = __nccwpck_require__(4697);
+var eventTargetShim = __nccwpck_require__(9415);
 
 /**
  * The signal class.
@@ -1897,7 +2868,7 @@ module.exports.AbortSignal = AbortSignal
 
 /***/ }),
 
-/***/ 7558:
+/***/ 7202:
 /***/ (function(module) {
 
 ;(function (globalObject) {
@@ -4826,7 +5797,7 @@ module.exports.AbortSignal = AbortSignal
 
 /***/ }),
 
-/***/ 4697:
+/***/ 9415:
 /***/ ((module, exports) => {
 
 "use strict";
@@ -5705,15 +6676,15 @@ module.exports.defineEventAttribute = defineEventAttribute
 
 /***/ }),
 
-/***/ 2742:
+/***/ 895:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Authenticator = void 0;
-const api_1 = __nccwpck_require__(4236);
-const util_1 = __nccwpck_require__(9334);
+const api_1 = __nccwpck_require__(3528);
+const util_1 = __nccwpck_require__(8621);
 const AUTH_AUDIENCE = "https://api.firebolt.io";
 const AUTH_GRANT_TYPE = "client_credentials";
 class Authenticator {
@@ -5730,11 +6701,7 @@ class Authenticator {
         }
         return {};
     }
-    authenticateWithToken(auth) {
-        const { accessToken } = auth;
-        this.accessToken = accessToken;
-    }
-    getAuthEndpoint(apiEndpoint) {
+    static getAuthEndpoint(apiEndpoint) {
         const myURL = new URL((0, util_1.assignProtocol)(apiEndpoint));
         const hostStrings = myURL.hostname.split(".");
         // We expect an apiEndpoint to be of format api.<env>.firebolt.io
@@ -5746,10 +6713,27 @@ class Authenticator {
         myURL.hostname = hostStrings.join(".");
         return myURL.toString();
     }
+    async authenticateUsernamePassword(auth) {
+        const { httpClient, apiEndpoint } = this.context;
+        const { username, password } = auth;
+        const url = `${apiEndpoint}/${api_1.USERNAME_PASSWORD_LOGIN}`;
+        const body = JSON.stringify({
+            username,
+            password
+        });
+        this.accessToken = undefined;
+        const { access_token } = await httpClient
+            .request("POST", url, {
+            body,
+            retry: false
+        })
+            .ready();
+        this.accessToken = access_token;
+    }
     async authenticateServiceAccount(auth) {
         const { httpClient, apiEndpoint } = this.context;
         const { client_id, client_secret } = auth;
-        const authEndpoint = this.getAuthEndpoint(apiEndpoint);
+        const authEndpoint = Authenticator.getAuthEndpoint(apiEndpoint);
         const params = new URLSearchParams({
             client_id,
             client_secret,
@@ -5769,14 +6753,23 @@ class Authenticator {
             .ready();
         this.accessToken = access_token;
     }
+    isUsernamePassword() {
+        const options = this.options.auth || this.options;
+        return !!(options.username &&
+            options.password);
+    }
+    isServiceAccount() {
+        const options = this.options.auth || this.options;
+        return !!(options.client_id &&
+            options.client_secret);
+    }
     async authenticate() {
         const options = this.options.auth || this.options;
-        if (options.accessToken) {
-            this.authenticateWithToken(options);
+        if (this.isUsernamePassword()) {
+            await this.authenticateUsernamePassword(options);
             return;
         }
-        if (options.client_id &&
-            options.client_secret) {
+        if (this.isServiceAccount()) {
             await this.authenticateServiceAccount(options);
             return;
         }
@@ -5788,24 +6781,52 @@ exports.Authenticator = Authenticator;
 
 /***/ }),
 
-/***/ 4236:
+/***/ 3528:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ACCOUNT_ID_BY_NAME = exports.ACCOUNT_SYSTEM_ENGINE = exports.QUERY_URL = exports.SERVICE_ACCOUNT_LOGIN = void 0;
+exports.ENGINES_BY_IDS_URL = exports.ACCOUNT_BINDINGS_URL = exports.ACCOUNT_INSTANCE_TYPES = exports.REGIONS = exports.ACCOUNT_ENGINE_STOP = exports.ACCOUNT_ENGINE_RESTART = exports.ACCOUNT_ENGINE_START = exports.ACCOUNT_DATABASE_BINDING_URL = exports.ACCOUNT_DATABASES = exports.ACCOUNT_DATABASE = exports.ACCOUNT_ENGINE_URL_BY_DATABASE_NAME = exports.ACCOUNT_ENGINES = exports.ACCOUNT_ENGINE = exports.ACCOUNT_BY_NAME = exports.ACCOUNT = exports.USERNAME_PASSWORD_LOGIN = exports.ACCOUNT_ID_BY_NAME = exports.ACCOUNT_SYSTEM_ENGINE = exports.QUERY_URL = exports.SERVICE_ACCOUNT_LOGIN = void 0;
 exports.SERVICE_ACCOUNT_LOGIN = "oauth/token";
 exports.QUERY_URL = "query";
 const ACCOUNT_SYSTEM_ENGINE = (accountName) => `web/v3/account/${accountName}/engineUrl`;
 exports.ACCOUNT_SYSTEM_ENGINE = ACCOUNT_SYSTEM_ENGINE;
 const ACCOUNT_ID_BY_NAME = (accountName) => `web/v3/account/${accountName}/resolve`;
 exports.ACCOUNT_ID_BY_NAME = ACCOUNT_ID_BY_NAME;
+// V1
+exports.USERNAME_PASSWORD_LOGIN = "auth/v1/login"; // legit:ignore-secrets
+exports.ACCOUNT = "iam/v2/account";
+exports.ACCOUNT_BY_NAME = "iam/v2/accounts:getIdByName";
+const ACCOUNT_ENGINE = (accountId, engineId) => `core/v1/accounts/${accountId}/engines/${engineId}`;
+exports.ACCOUNT_ENGINE = ACCOUNT_ENGINE;
+const ACCOUNT_ENGINES = (accountId) => `core/v1/accounts/${accountId}/engines`;
+exports.ACCOUNT_ENGINES = ACCOUNT_ENGINES;
+const ACCOUNT_ENGINE_URL_BY_DATABASE_NAME = (accountId) => (0, exports.ACCOUNT_ENGINES)(accountId) + ":getURLByDatabaseName";
+exports.ACCOUNT_ENGINE_URL_BY_DATABASE_NAME = ACCOUNT_ENGINE_URL_BY_DATABASE_NAME;
+const ACCOUNT_DATABASE = (accountId, databaseId) => `core/v1/accounts/${accountId}/databases/${databaseId}`;
+exports.ACCOUNT_DATABASE = ACCOUNT_DATABASE;
+const ACCOUNT_DATABASES = (accountId) => `core/v1/accounts/${accountId}/databases`;
+exports.ACCOUNT_DATABASES = ACCOUNT_DATABASES;
+const ACCOUNT_DATABASE_BINDING_URL = (accountId, databaseId, engineId) => (0, exports.ACCOUNT_DATABASE)(accountId, databaseId) + `/bindings/${engineId}`;
+exports.ACCOUNT_DATABASE_BINDING_URL = ACCOUNT_DATABASE_BINDING_URL;
+const ACCOUNT_ENGINE_START = (accountId, engineId) => (0, exports.ACCOUNT_ENGINE)(accountId, engineId) + ":start";
+exports.ACCOUNT_ENGINE_START = ACCOUNT_ENGINE_START;
+const ACCOUNT_ENGINE_RESTART = (accountId, engineId) => (0, exports.ACCOUNT_ENGINE)(accountId, engineId) + ":restart";
+exports.ACCOUNT_ENGINE_RESTART = ACCOUNT_ENGINE_RESTART;
+const ACCOUNT_ENGINE_STOP = (accountId, engineId) => (0, exports.ACCOUNT_ENGINE)(accountId, engineId) + ":stop";
+exports.ACCOUNT_ENGINE_STOP = ACCOUNT_ENGINE_STOP;
+exports.REGIONS = "compute/v1/regions";
+const ACCOUNT_INSTANCE_TYPES = (accountId) => `aws/v2/accounts/${accountId}/instanceTypes`;
+exports.ACCOUNT_INSTANCE_TYPES = ACCOUNT_INSTANCE_TYPES;
+const ACCOUNT_BINDINGS_URL = (accountId) => `core/v1/accounts/${accountId}/bindings`;
+exports.ACCOUNT_BINDINGS_URL = ACCOUNT_BINDINGS_URL;
+exports.ENGINES_BY_IDS_URL = "core/v1/engines:getByIds";
 //# sourceMappingURL=api.js.map
 
 /***/ }),
 
-/***/ 1126:
+/***/ 6276:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
@@ -5884,7 +6905,7 @@ exports.DeprecationError = DeprecationError;
 
 /***/ }),
 
-/***/ 9334:
+/***/ 8621:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -5894,8 +6915,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.zeroPad = exports.generateUserAgent = exports.systemInfoString = exports.checkArgumentValid = exports.checkArgumentExists = exports.withNullableTypes = exports.isDataQuery = exports.assignProtocol = void 0;
-const errors_1 = __nccwpck_require__(1126);
-const package_json_1 = __nccwpck_require__(4177);
+const errors_1 = __nccwpck_require__(6276);
+const package_json_1 = __nccwpck_require__(9225);
 const os_1 = __importDefault(__nccwpck_require__(2037));
 const assignProtocol = (url) => {
     return url.startsWith("http") ? url : `https://${url}`;
@@ -5973,18 +6994,16 @@ exports.zeroPad = zeroPad;
 
 /***/ }),
 
-/***/ 2259:
+/***/ 3292:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Connection = void 0;
-const types_1 = __nccwpck_require__(6176);
-const statement_1 = __nccwpck_require__(9682);
-const util_1 = __nccwpck_require__(9334);
-const errors_1 = __nccwpck_require__(1126);
-const api_1 = __nccwpck_require__(4236);
+const types_1 = __nccwpck_require__(1522);
+const statement_1 = __nccwpck_require__(8165);
+const util_1 = __nccwpck_require__(8621);
 const defaultQuerySettings = {
     output_format: types_1.OutputFormat.COMPACT
 };
@@ -5999,9 +7018,152 @@ class Connection {
         this.options = options;
         this.userAgent = (0, util_1.generateUserAgent)((_a = options.additionalParameters) === null || _a === void 0 ? void 0 : _a.userClients, (_b = options.additionalParameters) === null || _b === void 0 ? void 0 : _b.userDrivers);
     }
-    async getSytemEngineEndpoint() {
+    getRequestUrl(executeQueryOptions) {
+        const params = this.getBaseParameters(executeQueryOptions);
+        const paramsWithValue = Object.keys(params).reduce((acc, key) => {
+            const param = params[key];
+            if (param !== undefined) {
+                acc[key] = param;
+            }
+            return acc;
+        }, {});
+        const queryParams = new URLSearchParams(paramsWithValue);
+        return `${this.engineEndpoint}?${queryParams}`;
+    }
+    getBaseParameters(executeQueryOptions) {
+        const { settings } = executeQueryOptions;
+        const { database } = this.options;
+        return { database, ...settings };
+    }
+    async execute(query, executeQueryOptions = {}) {
+        var _a, _b;
+        const { httpClient, queryFormatter } = this.context;
+        executeQueryOptions.settings = {
+            ...defaultQuerySettings,
+            ...((_a = executeQueryOptions.settings) !== null && _a !== void 0 ? _a : {})
+        };
+        executeQueryOptions.response = {
+            ...defaultResponseSettings,
+            ...((_b = executeQueryOptions.response) !== null && _b !== void 0 ? _b : {})
+        };
+        const { parameters, namedParameters } = executeQueryOptions;
+        const formattedQuery = queryFormatter.formatQuery(query, parameters, namedParameters);
+        const body = formattedQuery;
+        const url = this.getRequestUrl(executeQueryOptions);
+        const request = httpClient.request("POST", url, {
+            headers: { "user-agent": this.userAgent },
+            body,
+            raw: true
+        });
+        this.activeRequests = this.activeRequests.add(request);
+        try {
+            await request.ready();
+            const statement = new statement_1.Statement(this.context, {
+                query: formattedQuery,
+                request,
+                executeQueryOptions
+            });
+            return statement;
+        }
+        finally {
+            this.activeRequests.delete(request);
+        }
+    }
+    async destroy() {
+        for (const request of this.activeRequests) {
+            request.abort();
+            this.activeRequests.delete(request);
+        }
+    }
+    get httpClient() {
+        return this.context.httpClient;
+    }
+}
+exports.Connection = Connection;
+//# sourceMappingURL=base.js.map
+
+/***/ }),
+
+/***/ 7869:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ConnectionV1 = void 0;
+const api_1 = __nccwpck_require__(3528);
+const base_1 = __nccwpck_require__(3292);
+const service_1 = __nccwpck_require__(4689);
+class ConnectionV1 extends base_1.Connection {
+    async resolveEngineEndpoint() {
+        const resourceManager = new service_1.ResourceManager({
+            connection: this,
+            ...this.context
+        });
+        const { engineName, engineEndpoint, database } = this.options;
+        if (engineEndpoint) {
+            this.engineEndpoint = engineEndpoint;
+            return this.engineEndpoint;
+        }
+        if (engineName) {
+            const engine = await resourceManager.engine.getByName(engineName);
+            this.engineEndpoint = engine.endpoint;
+            return this.engineEndpoint;
+        }
+        const defaultUrl = await resourceManager.database.getDefaultEndpointByName(database);
+        this.engineEndpoint = defaultUrl;
+        return this.engineEndpoint;
+    }
+    async resolveAccountId() {
+        if (this.accountIdCache) {
+            return this.accountIdCache;
+        }
+        const { httpClient, apiEndpoint } = this.context;
+        const { account } = this.options;
+        if (account) {
+            const queryParams = new URLSearchParams({ account_name: account });
+            const url = `${apiEndpoint}/${api_1.ACCOUNT_BY_NAME}?${queryParams}`;
+            const { account_id } = await httpClient
+                .request("GET", url)
+                .ready();
+            this.accountIdCache = account_id;
+            return account_id;
+        }
+        else {
+            const url = `${apiEndpoint}/${api_1.ACCOUNT}`;
+            const { account: { id } } = await httpClient
+                .request("GET", url)
+                .ready();
+            this.accountIdCache = id;
+            return id;
+        }
+    }
+}
+exports.ConnectionV1 = ConnectionV1;
+//# sourceMappingURL=connection_v1.js.map
+
+/***/ }),
+
+/***/ 9006:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ConnectionV2 = void 0;
+const errors_1 = __nccwpck_require__(6276);
+const api_1 = __nccwpck_require__(3528);
+const base_1 = __nccwpck_require__(3292);
+class ConnectionV2 extends base_1.Connection {
+    get account() {
+        if (!this.options.account) {
+            throw new Error("Account name is required");
+        }
+        return this.options.account;
+    }
+    async getSystemEngineEndpoint() {
         const { apiEndpoint, httpClient } = this.context;
-        const accountName = this.options.account;
+        const accountName = this.account;
         const url = `${apiEndpoint}/${(0, api_1.ACCOUNT_SYSTEM_ENGINE)(accountName)}`;
         const { engineUrl } = await httpClient
             .request("GET", url)
@@ -6076,9 +7238,9 @@ class Connection {
         }
         return res[0];
     }
-    async resolveAccountId(accountName) {
+    async resolveAccountId() {
         const { httpClient, apiEndpoint } = this.context;
-        const url = `${apiEndpoint}/${(0, api_1.ACCOUNT_ID_BY_NAME)(accountName)}`;
+        const url = `${apiEndpoint}/${(0, api_1.ACCOUNT_ID_BY_NAME)(this.account)}`;
         const { id } = await httpClient
             .request("GET", url)
             .ready();
@@ -6087,9 +7249,9 @@ class Connection {
     async resolveEngineEndpoint() {
         const { engineName, database } = this.options;
         // Connect to system engine first
-        const systemUrl = await this.getSytemEngineEndpoint();
+        const systemUrl = await this.getSystemEngineEndpoint();
         this.engineEndpoint = `${systemUrl}/${api_1.QUERY_URL}`;
-        this.accountId = await this.resolveAccountId(this.options.account);
+        this.accountId = await this.resolveAccountId();
         if (engineName && database) {
             const engineEndpoint = await this.getEngineByNameAndDb(engineName, database);
             this.engineEndpoint = engineEndpoint;
@@ -6114,75 +7276,53 @@ class Connection {
         // If nothing specified connect to generic system engine
         return this.engineEndpoint;
     }
-    getRequestUrl(executeQueryOptions) {
-        const { settings } = executeQueryOptions;
-        const { database } = this.options;
-        const params = { database, account_id: this.accountId, ...settings };
-        const paramsWithValue = Object.keys(params).reduce((acc, key) => {
-            const param = params[key];
-            if (param !== undefined) {
-                acc[key] = param;
-            }
-            return acc;
-        }, {});
-        const queryParams = new URLSearchParams(paramsWithValue);
-        return `${this.engineEndpoint}?${queryParams}`;
-    }
-    async execute(query, executeQueryOptions = {}) {
-        const { httpClient, queryFormatter } = this.context;
-        executeQueryOptions.settings = {
-            ...defaultQuerySettings,
-            ...(executeQueryOptions.settings || {})
+    getBaseParameters(executeQueryOptions) {
+        return {
+            account_id: this.accountId,
+            ...super.getBaseParameters(executeQueryOptions)
         };
-        executeQueryOptions.response = {
-            ...defaultResponseSettings,
-            ...(executeQueryOptions.response || {})
-        };
-        const { parameters, namedParameters } = executeQueryOptions;
-        const formattedQuery = queryFormatter.formatQuery(query, parameters, namedParameters);
-        const body = formattedQuery;
-        const url = this.getRequestUrl(executeQueryOptions);
-        const request = httpClient.request("POST", url, {
-            headers: { "user-agent": this.userAgent },
-            body,
-            raw: true
-        });
-        this.activeRequests = this.activeRequests.add(request);
-        try {
-            await request.ready();
-            const statement = new statement_1.Statement(this.context, {
-                query: formattedQuery,
-                request,
-                executeQueryOptions
-            });
-            return statement;
-        }
-        finally {
-            this.activeRequests.delete(request);
-        }
-    }
-    async destroy() {
-        for (const request of this.activeRequests) {
-            request.abort();
-            this.activeRequests.delete(request);
-        }
     }
 }
-exports.Connection = Connection;
+exports.ConnectionV2 = ConnectionV2;
+//# sourceMappingURL=connection_v2.js.map
+
+/***/ }),
+
+/***/ 5520:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.makeConnection = void 0;
+const connection_v1_1 = __nccwpck_require__(7869);
+const connection_v2_1 = __nccwpck_require__(9006);
+function makeConnection(context, options) {
+    if (options.auth.client_id &&
+        options.auth.client_secret) {
+        return new connection_v2_1.ConnectionV2(context, options);
+    }
+    else if (options.auth.username &&
+        options.auth.password) {
+        return new connection_v1_1.ConnectionV1(context, options);
+    }
+    throw new Error("Invalid auth options");
+}
+exports.makeConnection = makeConnection;
 //# sourceMappingURL=index.js.map
 
 /***/ }),
 
-/***/ 7188:
+/***/ 1581:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FireboltCore = void 0;
-const connection_1 = __nccwpck_require__(2259);
-const auth_1 = __nccwpck_require__(2742);
-const service_1 = __nccwpck_require__(9861);
+const connection_1 = __nccwpck_require__(5520);
+const auth_1 = __nccwpck_require__(895);
+const service_1 = __nccwpck_require__(4689);
 class FireboltCore {
     constructor(context, options) {
         this.context = context;
@@ -6190,18 +7330,19 @@ class FireboltCore {
     }
     async connect(connectionOptions) {
         const auth = new auth_1.Authenticator(this.context, connectionOptions);
-        const connection = new connection_1.Connection(this.context, connectionOptions);
+        const connection = (0, connection_1.makeConnection)(this.context, connectionOptions);
         await auth.authenticate();
         await connection.resolveEngineEndpoint();
-        this.resourceManager = new service_1.ResourceManager({
-            logger: this.context.logger,
-            connection
-        });
+        const context = {
+            connection,
+            ...this.context
+        };
+        this.resourceManager = new service_1.ResourceManager(context);
         return connection;
     }
     async testConnection(connectionOptions) {
         const auth = new auth_1.Authenticator(this.context, connectionOptions);
-        const connection = new connection_1.Connection(this.context, connectionOptions);
+        const connection = (0, connection_1.makeConnection)(this.context, connectionOptions);
         await auth.authenticate();
         await connection.resolveEngineEndpoint();
         await connection.execute("select 1");
@@ -6212,16 +7353,16 @@ exports.FireboltCore = FireboltCore;
 
 /***/ }),
 
-/***/ 631:
+/***/ 9015:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ResourceClient = exports.FireboltClient = void 0;
-const service_1 = __nccwpck_require__(9861);
-const core_1 = __nccwpck_require__(7188);
-const formatter_1 = __nccwpck_require__(7634);
+const service_1 = __nccwpck_require__(4689);
+const core_1 = __nccwpck_require__(1581);
+const formatter_1 = __nccwpck_require__(9709);
 const DEFAULT_API_ENDPOINT = "api.app.firebolt.io";
 const getContext = (options, dependencies) => {
     var _a, _b;
@@ -6238,30 +7379,23 @@ const getContext = (options, dependencies) => {
     };
     return context;
 };
-const getResourceContext = (options, dependencies) => {
-    var _a;
-    const { logger: loggerOptions, connection } = options;
-    const { logger: DefaultLogger } = dependencies;
-    const logger = ((_a = options.dependencies) === null || _a === void 0 ? void 0 : _a.logger) || new DefaultLogger(loggerOptions);
-    const context = {
-        logger,
-        connection
-    };
-    return context;
-};
 const FireboltClient = (dependencies) => {
     return (options = {}) => {
         const context = getContext(options, dependencies);
-        const instance = new core_1.FireboltCore(context, options);
-        return instance;
+        return new core_1.FireboltCore(context, options);
     };
 };
 exports.FireboltClient = FireboltClient;
 const ResourceClient = (dependencies) => {
     return (options) => {
-        const context = getResourceContext(options, dependencies);
-        const resourceManager = new service_1.ResourceManager(context);
-        return resourceManager;
+        const { connection } = options;
+        const context = {
+            connection,
+            ...getContext(options, dependencies),
+            // make sure to use already authenticated client from connection
+            httpClient: connection.httpClient
+        };
+        return new service_1.ResourceManager(context);
     };
 };
 exports.ResourceClient = ResourceClient;
@@ -6269,7 +7403,7 @@ exports.ResourceClient = ResourceClient;
 
 /***/ }),
 
-/***/ 7634:
+/***/ 9709:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -6279,9 +7413,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.QueryFormatter = exports.TimestampNTZ = exports.TimestampTZ = exports.PGDate = exports.Tuple = void 0;
-const bignumber_js_1 = __importDefault(__nccwpck_require__(7558));
-const util_1 = __nccwpck_require__(9334);
-const errors_1 = __nccwpck_require__(1126);
+const bignumber_js_1 = __importDefault(__nccwpck_require__(7202));
+const util_1 = __nccwpck_require__(8621);
+const errors_1 = __nccwpck_require__(6276);
 const CHARS_GLOBAL_REGEXP = /[\0\b\t\n\r\x1a"'\\]/g; // eslint-disable-line no-control-regex
 const CHARS_ESCAPE_MAP = {
     "\0": "\\0",
@@ -6472,7 +7606,7 @@ exports.QueryFormatter = QueryFormatter;
 
 /***/ }),
 
-/***/ 9421:
+/***/ 8960:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -6483,10 +7617,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NodeHttpClient = void 0;
 const https_1 = __nccwpck_require__(5687);
-const abort_controller_1 = __importDefault(__nccwpck_require__(1659));
-const node_fetch_1 = __importDefault(__nccwpck_require__(467));
-const util_1 = __nccwpck_require__(9334);
-const errors_1 = __nccwpck_require__(1126);
+const abort_controller_1 = __importDefault(__nccwpck_require__(2680));
+const node_fetch_1 = __importDefault(__nccwpck_require__(9131));
+const util_1 = __nccwpck_require__(8621);
+const errors_1 = __nccwpck_require__(6276);
 const AbortController = globalThis.AbortController || abort_controller_1.default;
 const DEFAULT_ERROR = "Server error";
 const DEFAULT_USER_AGENT = (0, util_1.systemInfoString)();
@@ -6522,7 +7656,6 @@ class NodeHttpClient {
                     await this.authenticator.authenticate();
                 }
                 catch (error) {
-                    console.error(error);
                     throw new errors_1.AuthenticationError({
                         message: "Failed to refresh access token"
                     });
@@ -6584,7 +7717,7 @@ exports.NodeHttpClient = NodeHttpClient;
 
 /***/ }),
 
-/***/ 6981:
+/***/ 6671:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -6593,9 +7726,9 @@ var __webpack_unused_export__;
 __webpack_unused_export__ = ({ value: true });
 __webpack_unused_export__ = __webpack_unused_export__ = __webpack_unused_export__ = __webpack_unused_export__ = __webpack_unused_export__ = __webpack_unused_export__ = __webpack_unused_export__ = __webpack_unused_export__ = __webpack_unused_export__ = __webpack_unused_export__ = __webpack_unused_export__ = exports.re = void 0;
 // node entry point
-const firebolt_1 = __nccwpck_require__(631);
-const node_1 = __nccwpck_require__(9421);
-const node_2 = __nccwpck_require__(4938);
+const firebolt_1 = __nccwpck_require__(9015);
+const node_1 = __nccwpck_require__(8960);
+const node_2 = __nccwpck_require__(1701);
 exports.re = (0, firebolt_1.FireboltClient)({
     logger: node_2.Logger,
     httpClient: node_1.NodeHttpClient
@@ -6604,26 +7737,26 @@ __webpack_unused_export__ = (0, firebolt_1.ResourceClient)({
     logger: node_2.Logger,
     httpClient: node_1.NodeHttpClient
 });
-var types_1 = __nccwpck_require__(6176);
+var types_1 = __nccwpck_require__(1522);
 __webpack_unused_export__ = ({ enumerable: true, get: function () { return types_1.OutputFormat; } });
-var types_2 = __nccwpck_require__(8335);
+var types_2 = __nccwpck_require__(3025);
 __webpack_unused_export__ = ({ enumerable: true, get: function () { return types_2.EngineStatusSummary; } });
-var dataTypes_1 = __nccwpck_require__(3058);
+var dataTypes_1 = __nccwpck_require__(4411);
 __webpack_unused_export__ = ({ enumerable: true, get: function () { return dataTypes_1.isDateType; } });
 __webpack_unused_export__ = ({ enumerable: true, get: function () { return dataTypes_1.isNumberType; } });
-var formatter_1 = __nccwpck_require__(7634);
+var formatter_1 = __nccwpck_require__(9709);
 __webpack_unused_export__ = ({ enumerable: true, get: function () { return formatter_1.Tuple; } });
 __webpack_unused_export__ = ({ enumerable: true, get: function () { return formatter_1.PGDate; } });
 __webpack_unused_export__ = ({ enumerable: true, get: function () { return formatter_1.TimestampTZ; } });
 __webpack_unused_export__ = ({ enumerable: true, get: function () { return formatter_1.TimestampNTZ; } });
 __webpack_unused_export__ = ({ enumerable: true, get: function () { return formatter_1.QueryFormatter; } });
-var parser_1 = __nccwpck_require__(2557);
+var parser_1 = __nccwpck_require__(1242);
 __webpack_unused_export__ = ({ enumerable: true, get: function () { return parser_1.JSONParser; } });
 //# sourceMappingURL=index.js.map
 
 /***/ }),
 
-/***/ 4938:
+/***/ 1701:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
@@ -6640,14 +7773,14 @@ exports.Logger = Logger;
 
 /***/ }),
 
-/***/ 330:
+/***/ 1556:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Meta = void 0;
-const dataTypes_1 = __nccwpck_require__(3058);
+const dataTypes_1 = __nccwpck_require__(4411);
 class Meta {
     constructor(column) {
         const { type, name } = column;
@@ -6660,40 +7793,16 @@ exports.Meta = Meta;
 
 /***/ }),
 
-/***/ 4794:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.AccountService = void 0;
-class AccountService {
-    constructor(context) {
-        this.context = context;
-    }
-    async setAccountName(account) {
-        this.name = account;
-    }
-    async resolveAccountId(accountName) {
-        this.id = await this.context.connection.resolveAccountId(accountName);
-        return this.id;
-    }
-}
-exports.AccountService = AccountService;
-//# sourceMappingURL=index.js.map
-
-/***/ }),
-
-/***/ 9483:
+/***/ 4815:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DatabaseService = void 0;
-const errors_1 = __nccwpck_require__(1126);
-const model_1 = __nccwpck_require__(5060);
-const model_2 = __nccwpck_require__(8617);
+const errors_1 = __nccwpck_require__(6276);
+const model_1 = __nccwpck_require__(636);
+const model_2 = __nccwpck_require__(3968);
 class DatabaseService {
     constructor(context) {
         this.context = context;
@@ -6741,7 +7850,9 @@ class DatabaseService {
         let attachedEnginesSql = "";
         if (Array.isArray(options.attached_engines) &&
             options.attached_engines.length > 0) {
-            const attachedEngines = options.attached_engines.map(engine => engine instanceof model_1.EngineModel ? `"${engine.name}"` : `"${engine}"`).join(" ");
+            const attachedEngines = options.attached_engines
+                .map(engine => engine instanceof model_1.EngineModel ? `"${engine.name}"` : `"${engine}"`)
+                .join(" ");
             attachedEnginesSql = ` ATTACHED_ENGINES = (${attachedEngines})`;
         }
         if (options.region || options.description || attachedEnginesSql) {
@@ -6767,22 +7878,22 @@ exports.DatabaseService = DatabaseService;
 
 /***/ }),
 
-/***/ 8617:
+/***/ 3968:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DatabaseModel = void 0;
-const errors_1 = __nccwpck_require__(1126);
-const service_1 = __nccwpck_require__(9861);
-const types_1 = __nccwpck_require__(8335);
+const errors_1 = __nccwpck_require__(6276);
+const index_1 = __nccwpck_require__(4689);
+const types_1 = __nccwpck_require__(3025);
 class DatabaseModel {
     constructor(database, context) {
         const { name, description } = database;
         this.name = name;
         this.description = description;
-        this.resourceManager = new service_1.ResourceManager(context);
+        this.context = context;
     }
     async getDefaultEndpoint() {
         throw new errors_1.DeprecationError({
@@ -6790,7 +7901,8 @@ class DatabaseModel {
         });
     }
     async getAttachedEngines() {
-        return await this.resourceManager.engine.getByDB(this.name);
+        const resourceManager = new index_1.ResourceManager(this.context);
+        return await resourceManager.engine.getByDB(this.name);
     }
     async delete() {
         const engines = await this.getAttachedEngines();
@@ -6801,7 +7913,7 @@ class DatabaseModel {
             }
         }
         const query = `DROP DATABASE "${this.name}"`;
-        this.resourceManager.database.context.connection.execute(query);
+        await this.context.connection.execute(query);
     }
 }
 exports.DatabaseModel = DatabaseModel;
@@ -6809,17 +7921,163 @@ exports.DatabaseModel = DatabaseModel;
 
 /***/ }),
 
-/***/ 658:
+/***/ 9130:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DatabaseService = void 0;
+const api_1 = __nccwpck_require__(3528);
+const model_1 = __nccwpck_require__(3400);
+const utils_1 = __nccwpck_require__(809);
+const index_1 = __nccwpck_require__(4689);
+class DatabaseService {
+    constructor(context) {
+        this.context = context;
+    }
+    get accountId() {
+        return this.context.connection.resolveAccountId();
+    }
+    async getDatabaseId(databaseName) {
+        const { apiEndpoint, httpClient } = this.context;
+        const queryParams = new URLSearchParams({ database_name: databaseName });
+        const url = `${apiEndpoint}/${(0, api_1.ACCOUNT_DATABASES)(await this.accountId)}:getIdByName?${queryParams}`;
+        const data = await httpClient
+            .request("GET", url)
+            .ready();
+        return data.database_id;
+    }
+    async getDefaultEndpointByName(name) {
+        const { apiEndpoint, httpClient } = this.context;
+        const queryParams = new URLSearchParams({ database_name: name });
+        const url = `${apiEndpoint}/${(0, api_1.ACCOUNT_ENGINE_URL_BY_DATABASE_NAME)(await this.accountId)}?${queryParams}`;
+        const data = await httpClient
+            .request("GET", url)
+            .ready();
+        return data.engine_url;
+    }
+    async getById(databaseId) {
+        const { apiEndpoint, httpClient } = this.context;
+        const url = `${apiEndpoint}/${(0, api_1.ACCOUNT_DATABASE)(await this.accountId, databaseId)}`;
+        const data = await httpClient
+            .request("GET", url)
+            .ready();
+        return new model_1.DatabaseModel(this.context, data.database);
+    }
+    async getByName(databaseName) {
+        const { database_id } = await this.getDatabaseId(databaseName);
+        const database = await this.getById(database_id);
+        return new model_1.DatabaseModel(this.context, database);
+    }
+    async getAll() {
+        const databases = [];
+        const { apiEndpoint, httpClient } = this.context;
+        let hasNextPage = false;
+        let cursor = "";
+        do {
+            const query = cursor
+                ? `?${new URLSearchParams({ "page.after": cursor })}`
+                : "";
+            const url = `${apiEndpoint}/${(0, api_1.ACCOUNT_DATABASES)(await this.accountId)}${query}`;
+            const data = await httpClient
+                .request("GET", url)
+                .ready();
+            hasNextPage = data.page.has_next_page;
+            for (const edge of data.edges) {
+                cursor = edge.cursor;
+                databases.push(new model_1.DatabaseModel(this.context, edge.node));
+            }
+        } while (hasNextPage);
+        return databases;
+    }
+    async create(name, options) {
+        const { apiEndpoint, httpClient } = this.context;
+        if (options.region === undefined) {
+            throw new Error("Region is required");
+        }
+        const databasePayload = JSON.stringify({
+            account_id: await this.accountId,
+            database: {
+                name: name,
+                description: options.description,
+                compute_region_id: await (0, utils_1.resolveRegionKey)(options.region, apiEndpoint, httpClient)
+            }
+        });
+        const url = `${apiEndpoint}/${(0, api_1.ACCOUNT_DATABASES)(await this.accountId)}`;
+        const data = await httpClient
+            .request("POST", url, { body: databasePayload })
+            .ready();
+        const database = new model_1.DatabaseModel(this.context, data.database);
+        if (options.attached_engines) {
+            const resourceManager = new index_1.ResourceManager(this.context);
+            for (const engine in options.attached_engines) {
+                await resourceManager.engine.attachToDatabase(engine, database);
+            }
+        }
+        return database;
+    }
+}
+exports.DatabaseService = DatabaseService;
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 3400:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DatabaseModel = void 0;
+const api_1 = __nccwpck_require__(3528);
+const index_1 = __nccwpck_require__(4689);
+class DatabaseModel {
+    constructor(context, database) {
+        const { id, name, description } = database;
+        this.id = id;
+        this.name = name;
+        this.description = description;
+        this.context = context;
+    }
+    get accountId() {
+        return this.context.connection.resolveAccountId();
+    }
+    async getDefaultEndpoint() {
+        const { apiEndpoint, httpClient } = this.context;
+        const queryParams = new URLSearchParams({ database_name: this.name });
+        const url = `${apiEndpoint}/${(0, api_1.ACCOUNT_ENGINE_URL_BY_DATABASE_NAME)(await this.accountId)}?${queryParams}`;
+        const data = await httpClient
+            .request("GET", url)
+            .ready();
+        return data.engine_url;
+    }
+    async getAttachedEngines() {
+        const resourceManager = new index_1.ResourceManager(this.context);
+        return resourceManager.engine.getByDB(this.name);
+    }
+    async delete() {
+        const { apiEndpoint, httpClient } = this.context;
+        const url = `${apiEndpoint}/${(0, api_1.ACCOUNT_DATABASE)(await this.accountId, this.id.database_id)}`;
+        await httpClient.request("DELETE", url).ready();
+    }
+}
+exports.DatabaseModel = DatabaseModel;
+//# sourceMappingURL=model.js.map
+
+/***/ }),
+
+/***/ 7602:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.EngineService = void 0;
-const errors_1 = __nccwpck_require__(1126);
-const model_1 = __nccwpck_require__(8617);
-const model_2 = __nccwpck_require__(5060);
-const types_1 = __nccwpck_require__(8335);
+const errors_1 = __nccwpck_require__(6276);
+const model_1 = __nccwpck_require__(3968);
+const model_2 = __nccwpck_require__(636);
+const types_1 = __nccwpck_require__(3025);
 class EngineService {
     constructor(context) {
         this.CREATE_PARAMETER_NAMES = [
@@ -6933,15 +8191,15 @@ exports.EngineService = EngineService;
 
 /***/ }),
 
-/***/ 5060:
+/***/ 636:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.EngineModel = void 0;
-const errors_1 = __nccwpck_require__(1126);
-const types_1 = __nccwpck_require__(8335);
+const errors_1 = __nccwpck_require__(6276);
+const types_1 = __nccwpck_require__(3025);
 class EngineModel {
     constructor(connection, engine) {
         const { name, endpoint, current_status_summary } = engine;
@@ -7011,7 +8269,7 @@ exports.EngineModel = EngineModel;
 
 /***/ }),
 
-/***/ 8335:
+/***/ 3025:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
@@ -7036,6 +8294,13 @@ var EngineStatusSummary;
     EngineStatusSummary["STARTING_INITIALIZING"] = "Started";
     EngineStatusSummary["STOPPED"] = "Stopped";
     EngineStatusSummary["STOPPING"] = "Stopping";
+    // Specific for V1, here are just for typing match
+    EngineStatusSummary["DELETED"] = "ENGINE_STATUS_SUMMARY_DELETED";
+    EngineStatusSummary["FAILED"] = "ENGINE_STATUS_SUMMARY_FAILED";
+    EngineStatusSummary["RESTARTING"] = "ENGINE_STATUS_SUMMARY_RESTARTING";
+    EngineStatusSummary["RESTARTING_INITIALIZING"] = "ENGINE_STATUS_SUMMARY_RESTARTING_INITIALIZING";
+    EngineStatusSummary["UNSPECIFIED"] = "ENGINE_STATUS_SUMMARY_UNSPECIFIED";
+    EngineStatusSummary["UPGRADING"] = "ENGINE_STATUS_SUMMARY_UPGRADING";
 })(EngineStatusSummary = exports.EngineStatusSummary || (exports.EngineStatusSummary = {}));
 var EngineType;
 (function (EngineType) {
@@ -7052,22 +8317,285 @@ var WarmupMethod;
 
 /***/ }),
 
-/***/ 9861:
+/***/ 4825:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.EngineService = void 0;
+const api_1 = __nccwpck_require__(3528);
+const model_1 = __nccwpck_require__(7712);
+const utils_1 = __nccwpck_require__(809);
+const v1_1 = __nccwpck_require__(9130);
+class EngineService {
+    constructor(context) {
+        this.context = context;
+    }
+    get accountId() {
+        return this.context.connection.resolveAccountId();
+    }
+    async getEngineId(engineName) {
+        const { apiEndpoint, httpClient } = this.context;
+        const queryParams = new URLSearchParams({ engine_name: engineName });
+        const url = `${apiEndpoint}/${(0, api_1.ACCOUNT_ENGINES)(await this.accountId)}:getIdByName?${queryParams}`;
+        const data = await httpClient
+            .request("GET", url)
+            .ready();
+        return data.engine_id;
+    }
+    async getById(engineId) {
+        const { apiEndpoint, httpClient } = this.context;
+        const url = `${apiEndpoint}/${(0, api_1.ACCOUNT_ENGINE)(await this.accountId, engineId)}`;
+        const data = await httpClient
+            .request("GET", url)
+            .ready();
+        return new model_1.EngineModel(this.context, data.engine);
+    }
+    async getByIds(engineIds) {
+        const { apiEndpoint, httpClient } = this.context;
+        if (engineIds.length === 0) {
+            return [];
+        }
+        const accountId = await this.accountId;
+        const enginesPayload = JSON.stringify({
+            engine_ids: engineIds.map(id => ({ engineId: id, accountId: accountId }))
+        });
+        const url = `${apiEndpoint}/${api_1.ENGINES_BY_IDS_URL}`;
+        const data = await httpClient
+            .request("POST", url, { body: enginesPayload })
+            .ready();
+        return data.engines.map(engine => new model_1.EngineModel(this.context, engine));
+    }
+    async getByDB(database_name) {
+        const { apiEndpoint, httpClient } = this.context;
+        const databases = new v1_1.DatabaseService(this.context);
+        const database_id = (await databases.getByName(database_name)).id
+            .database_id;
+        const url = `${apiEndpoint}/${(0, api_1.ACCOUNT_BINDINGS_URL)(await this.accountId)}?filter.id_database_id_eq=${database_id}`;
+        const data = await httpClient
+            .request("GET", url)
+            .ready();
+        const engine_ids = data.edges.map(edge => edge.node.id.engine_id);
+        return await this.getByIds(engine_ids);
+    }
+    async getByName(engineName) {
+        const { engine_id } = await this.getEngineId(engineName);
+        return await this.getById(engine_id);
+    }
+    async getAll() {
+        const engines = [];
+        const { apiEndpoint, httpClient } = this.context;
+        let hasNextPage = false;
+        let cursor = "";
+        do {
+            const query = cursor
+                ? `?${new URLSearchParams({ "page.after": cursor })}`
+                : "";
+            const url = `${apiEndpoint}/${(0, api_1.ACCOUNT_ENGINES)(await this.accountId)}${query}`;
+            const data = await httpClient
+                .request("GET", url)
+                .ready();
+            hasNextPage = data.page.has_next_page;
+            for (const edge of data.edges) {
+                cursor = edge.cursor;
+                engines.push(new model_1.EngineModel(this.context, edge.node));
+            }
+        } while (hasNextPage);
+        return engines;
+    }
+    warmupToString(name) {
+        const mapping = {
+            MINIMAL: "ENGINE_SETTINGS_WARM_UP_MINIMAL",
+            PRELOAD_INDEXES: "ENGINE_SETTINGS_WARM_UP_INDEXES",
+            PRELOAD_ALL_DATA: "ENGINE_SETTINGS_WARM_UP_ALL"
+        };
+        return mapping[name] || name;
+    }
+    async create(name, options) {
+        var _a;
+        const { apiEndpoint, httpClient } = this.context;
+        if (!options || !("region" in options) || options.region === undefined) {
+            throw new Error("region is required");
+        }
+        const region_key = await (0, utils_1.resolveRegionKey)(options.region, apiEndpoint, httpClient);
+        const instance_type_id = (options.spec &&
+            (await (0, utils_1.resolveEngineSpec)(options.spec, region_key.region_id, await this.accountId, apiEndpoint, httpClient))) ||
+            (await (0, utils_1.getCheapestInstance)(region_key.region_id, await this.accountId, apiEndpoint, httpClient));
+        const enginePayload = JSON.stringify({
+            account_id: await this.accountId,
+            engine: {
+                name: name,
+                compute_region_id: region_key,
+                settings: {
+                    ...(options.engine_type && { engine_type: options.engine_type }),
+                    ...(options.auto_stop && {
+                        auto_stop_delay_duration: `${options.auto_stop * 60}s`
+                    }),
+                    ...(options.warmup && {
+                        warm_up: this.warmupToString(options.warmup)
+                    })
+                }
+            },
+            engine_revision: {
+                specification: {
+                    db_compute_instances_type_id: instance_type_id,
+                    proxy_instances_type_id: instance_type_id,
+                    proxy_instances_count: 1,
+                    db_compute_instances_count: (_a = options.scale) !== null && _a !== void 0 ? _a : 1
+                }
+            }
+        });
+        const url = `${apiEndpoint}/${(0, api_1.ACCOUNT_ENGINES)(await this.accountId)}`;
+        const data = await httpClient
+            .request("POST", url, { body: enginePayload })
+            .ready();
+        return new model_1.EngineModel(this.context, data.engine);
+    }
+    async attachToDatabase(engine, database) {
+        const { apiEndpoint, httpClient } = this.context;
+        const engineId = typeof engine === "string"
+            ? (await this.getEngineId(engine)).engine_id
+            : engine.id.engine_id;
+        const databases = new v1_1.DatabaseService(this.context);
+        const databaseId = typeof database === "string"
+            ? (await databases.getByName(database)).id.database_id
+            : database.id.database_id;
+        const url = `${apiEndpoint}/${(0, api_1.ACCOUNT_DATABASE_BINDING_URL)(await this.accountId, databaseId, engineId)}`;
+        const payload = JSON.stringify({
+            binding: {
+                id: {
+                    account_id: await this.accountId,
+                    database_id: databaseId,
+                    engine_id: engineId
+                }
+            }
+        });
+        await httpClient.request("POST", url, { body: payload }).ready();
+    }
+}
+exports.EngineService = EngineService;
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 7712:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.EngineModel = void 0;
+const api_1 = __nccwpck_require__(3528);
+class EngineModel {
+    constructor(context, engine) {
+        const { id, name, description, endpoint, current_status_summary } = engine;
+        this.id = id;
+        this.name = name;
+        this.description = description;
+        this.endpoint = endpoint;
+        this.context = context;
+        this.current_status_summary = current_status_summary;
+    }
+    get accountId() {
+        return this.context.connection.resolveAccountId();
+    }
+    async start() {
+        const { apiEndpoint, httpClient } = this.context;
+        const id = this.id.engine_id;
+        const url = `${apiEndpoint}/${(0, api_1.ACCOUNT_ENGINE_START)(await this.accountId, id)}`;
+        const data = await httpClient
+            .request("POST", url)
+            .ready();
+        return data;
+    }
+    async startAndWait() {
+        const { engine: { current_status_summary } } = await this.start();
+        this.current_status_summary = current_status_summary;
+        if (this.current_status_summary.includes("RUNNING")) {
+            return { engine: this };
+        }
+        let interval;
+        await new Promise(resolve => {
+            interval = setInterval(() => {
+                // wrap in async function to use await
+                (async () => {
+                    await this.refreshStatus();
+                    if (this.current_status_summary.includes("RUNNING")) {
+                        return resolve();
+                    }
+                })();
+            }, 10 * 1000); // Check every 10 seconds.
+        }).finally(() => {
+            if (interval) {
+                clearInterval(interval);
+            }
+        });
+        return { engine: this };
+    }
+    async stop() {
+        const { apiEndpoint, httpClient } = this.context;
+        const id = this.id.engine_id;
+        const url = `${apiEndpoint}/${(0, api_1.ACCOUNT_ENGINE_STOP)(await this.accountId, id)}`;
+        const data = await httpClient
+            .request("POST", url)
+            .ready();
+        return data;
+    }
+    async restart() {
+        const { apiEndpoint, httpClient } = this.context;
+        const id = this.id.engine_id;
+        const url = `${apiEndpoint}/${(0, api_1.ACCOUNT_ENGINE_RESTART)(await this.accountId, id)}`;
+        const data = await httpClient
+            .request("POST", url)
+            .ready();
+        return data;
+    }
+    async refreshStatus() {
+        const { apiEndpoint, httpClient } = this.context;
+        const id = this.id.engine_id;
+        const url = `${apiEndpoint}/${(0, api_1.ACCOUNT_ENGINE)(await this.accountId, id)}`;
+        const { engine: { current_status_summary } } = await httpClient.request("GET", url).ready();
+        this.current_status_summary = current_status_summary;
+    }
+    async delete() {
+        const { apiEndpoint, httpClient } = this.context;
+        const id = this.id.engine_id;
+        const url = `${apiEndpoint}/${(0, api_1.ACCOUNT_ENGINE)(await this.accountId, id)}`;
+        await httpClient.request("DELETE", url).ready();
+    }
+}
+exports.EngineModel = EngineModel;
+//# sourceMappingURL=model.js.map
+
+/***/ }),
+
+/***/ 4689:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ResourceManager = void 0;
-const database_1 = __nccwpck_require__(9483);
-const engine_1 = __nccwpck_require__(658);
-const account_1 = __nccwpck_require__(4794);
+const database_1 = __nccwpck_require__(4815);
+const v1_1 = __nccwpck_require__(9130);
+const engine_1 = __nccwpck_require__(7602);
+const v1_2 = __nccwpck_require__(4825);
 class ResourceManager {
     constructor(context) {
         this.context = context;
-        this.engine = new engine_1.EngineService(this.context);
-        this.database = new database_1.DatabaseService(this.context);
-        this.account = new account_1.AccountService(this.context);
+        const { httpClient } = this.context;
+        if (httpClient.authenticator.isServiceAccount()) {
+            this.engine = new engine_1.EngineService(this.context);
+            this.database = new database_1.DatabaseService(this.context);
+        }
+        else if (httpClient.authenticator.isUsernamePassword()) {
+            this.engine = new v1_2.EngineService(this.context);
+            this.database = new v1_1.DatabaseService(this.context);
+        }
+        else {
+            throw new Error("Invalid auth credentials provided. Please check your credentials and try again.");
+        }
     }
 }
 exports.ResourceManager = ResourceManager;
@@ -7075,14 +8603,69 @@ exports.ResourceManager = ResourceManager;
 
 /***/ }),
 
-/***/ 3058:
+/***/ 809:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getCheapestInstance = exports.resolveEngineSpec = exports.resolveRegionKey = void 0;
+const api_1 = __nccwpck_require__(3528);
+async function resolveRegionKey(name, apiEndpoint, httpClient) {
+    const url = `${apiEndpoint}/${api_1.REGIONS}`;
+    const data = await httpClient
+        .request("GET", url)
+        .ready();
+    for (const edge of data.edges) {
+        if (edge.node.name == name) {
+            return edge.node.id;
+        }
+    }
+    throw new Error(`Region ${name} not found`);
+}
+exports.resolveRegionKey = resolveRegionKey;
+async function listInstanceTypes(accountId, apiEndpoint, httpClient) {
+    const url = `${apiEndpoint}/${(0, api_1.ACCOUNT_INSTANCE_TYPES)(accountId)}`;
+    const data = await httpClient
+        .request("GET", url)
+        .ready();
+    return data;
+}
+async function resolveEngineSpec(name, regionId, accountId, apiEndpoint, httpClient) {
+    const data = await listInstanceTypes(accountId, apiEndpoint, httpClient);
+    for (const edge of data.edges) {
+        if (edge.node.name == name && edge.node.id.region_id == regionId) {
+            return edge.node.id;
+        }
+    }
+    throw new Error(`Instance type ${name} not found`);
+}
+exports.resolveEngineSpec = resolveEngineSpec;
+async function getCheapestInstance(regionId, accountId, apiEndpoint, httpClient) {
+    const data = await listInstanceTypes(accountId, apiEndpoint, httpClient);
+    const instances = data.edges
+        .filter(e => e.node.id.region_id == regionId && e.node.price_per_hour_cents > 0)
+        .sort((a, b) => {
+        return a.node.price_per_hour_cents - b.node.price_per_hour_cents;
+    });
+    if (instances.length == 0) {
+        throw new Error(`No instances found for region ${regionId}`);
+    }
+    return instances[0].node.id;
+}
+exports.getCheapestInstance = getCheapestInstance;
+//# sourceMappingURL=utils.js.map
+
+/***/ }),
+
+/***/ 4411:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.isNumberType = exports.isFloatType = exports.isDateType = exports.isByteAType = exports.getInnerType = exports.getFireboltType = exports.BYTEA_TYPES = exports.STRING_TYPES = exports.INTEGER_TYPES = exports.BOOLEAN_TYPES = exports.FLOAT_TYPES = void 0;
-const util_1 = __nccwpck_require__(9334);
+const util_1 = __nccwpck_require__(8621);
 const typeMapping = {
     date: "date",
     date_ext: "date",
@@ -7204,14 +8787,14 @@ exports.isNumberType = isNumberType;
 
 /***/ }),
 
-/***/ 3818:
+/***/ 996:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.hydrateDate = void 0;
-const util_1 = __nccwpck_require__(9334);
+const util_1 = __nccwpck_require__(8621);
 // will match such formats
 // 2006-01-02
 // 9999-12-31 23:59:59.999999
@@ -7256,7 +8839,7 @@ exports.hydrateDate = hydrateDate;
 
 /***/ }),
 
-/***/ 8322:
+/***/ 438:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -7266,9 +8849,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.hydrateRow = void 0;
-const bignumber_js_1 = __importDefault(__nccwpck_require__(7558));
-const dataTypes_1 = __nccwpck_require__(3058);
-const hydrateDate_1 = __nccwpck_require__(3818);
+const bignumber_js_1 = __importDefault(__nccwpck_require__(7202));
+const dataTypes_1 = __nccwpck_require__(4411);
+const hydrateDate_1 = __nccwpck_require__(996);
 const getHydratedValue = (value, type, executeQueryOptions) => {
     var _a;
     if (Array.isArray(value)) {
@@ -7313,7 +8896,7 @@ exports.hydrateRow = hydrateRow;
 
 /***/ }),
 
-/***/ 9682:
+/***/ 8165:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -7323,11 +8906,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Statement = void 0;
-const json_bigint_1 = __importDefault(__nccwpck_require__(5031));
-const util_1 = __nccwpck_require__(9334);
-const rowStream_1 = __nccwpck_require__(7216);
-const jsonStream_1 = __nccwpck_require__(2973);
-const normalizeResponse_1 = __nccwpck_require__(9968);
+const json_bigint_1 = __importDefault(__nccwpck_require__(1829));
+const util_1 = __nccwpck_require__(8621);
+const rowStream_1 = __nccwpck_require__(9049);
+const jsonStream_1 = __nccwpck_require__(5393);
+const normalizeResponse_1 = __nccwpck_require__(9092);
 class Statement {
     constructor(context, { query, request, executeQueryOptions }) {
         this.context = context;
@@ -7462,16 +9045,16 @@ exports.Statement = Statement;
 
 /***/ }),
 
-/***/ 9968:
+/***/ 9092:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.normalizeResponse = exports.getNormalizedStatistics = exports.normalizeColumn = exports.normalizeRow = void 0;
-const types_1 = __nccwpck_require__(6176);
-const meta_1 = __nccwpck_require__(330);
-const hydrateResponse_1 = __nccwpck_require__(8322);
+const types_1 = __nccwpck_require__(1522);
+const meta_1 = __nccwpck_require__(1556);
+const hydrateResponse_1 = __nccwpck_require__(438);
 const normalizeRow = (row, meta, executeQueryOptions) => {
     const { settings = {} } = executeQueryOptions;
     if (settings.output_format === types_1.OutputFormat.JSON) {
@@ -7536,7 +9119,7 @@ exports.normalizeResponse = normalizeResponse;
 
 /***/ }),
 
-/***/ 2973:
+/***/ 5393:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -7546,10 +9129,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.JSONStream = void 0;
-const json_bigint_1 = __importDefault(__nccwpck_require__(5031));
-const normalizeResponse_1 = __nccwpck_require__(9968);
-const hydrateResponse_1 = __nccwpck_require__(8322);
-const parser_1 = __nccwpck_require__(2557);
+const json_bigint_1 = __importDefault(__nccwpck_require__(1829));
+const normalizeResponse_1 = __nccwpck_require__(9092);
+const hydrateResponse_1 = __nccwpck_require__(438);
+const parser_1 = __nccwpck_require__(1242);
 class JSONStream {
     constructor({ emitter, options, executeQueryOptions }) {
         var _a;
@@ -7594,7 +9177,7 @@ exports.JSONStream = JSONStream;
 
 /***/ }),
 
-/***/ 2557:
+/***/ 1242:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -7604,7 +9187,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.JSONParser = void 0;
-const json_bigint_1 = __importDefault(__nccwpck_require__(5031));
+const json_bigint_1 = __importDefault(__nccwpck_require__(1829));
 class JSONParser {
     constructor({ onMetadataParsed = (columns) => { }, hydrateColumn = (column) => json_bigint_1.default.parse(column), hydrateRow = (row, isLastRow) => json_bigint_1.default.parse(row) }) {
         this.onMetadataParsed = onMetadataParsed;
@@ -7796,7 +9379,7 @@ exports.JSONParser = JSONParser;
 
 /***/ }),
 
-/***/ 7216:
+/***/ 9049:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -7815,7 +9398,7 @@ exports.RowStream = RowStream;
 
 /***/ }),
 
-/***/ 6176:
+/***/ 1522:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
@@ -7833,11 +9416,11 @@ var OutputFormat;
 
 /***/ }),
 
-/***/ 5031:
+/***/ 1829:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-var json_stringify = (__nccwpck_require__(8574).stringify);
-var json_parse     = __nccwpck_require__(9099);
+var json_stringify = (__nccwpck_require__(9076).stringify);
+var json_parse     = __nccwpck_require__(1406);
 
 module.exports = function(options) {
     return  {
@@ -7852,7 +9435,7 @@ module.exports.stringify = json_stringify;
 
 /***/ }),
 
-/***/ 9099:
+/***/ 1406:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 var BigNumber = null;
@@ -8062,7 +9645,7 @@ var json_parse = function (options) {
       if (!isFinite(number)) {
         error('Bad number');
       } else {
-        if (BigNumber == null) BigNumber = __nccwpck_require__(7558);
+        if (BigNumber == null) BigNumber = __nccwpck_require__(7202);
         //if (number > 9007199254740992 || number < -9007199254740992)
         // Bignumber has stricter check: everything with length > 15 digits disallowed
         if (string.length > 15)
@@ -8302,10 +9885,10 @@ module.exports = json_parse;
 
 /***/ }),
 
-/***/ 8574:
+/***/ 9076:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-var BigNumber = __nccwpck_require__(7558);
+var BigNumber = __nccwpck_require__(7202);
 
 /*
     json2.js
@@ -8693,7 +10276,7 @@ var JSON = module.exports;
 
 /***/ }),
 
-/***/ 467:
+/***/ 9131:
 /***/ ((module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -8706,7 +10289,7 @@ function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'defau
 var Stream = _interopDefault(__nccwpck_require__(2781));
 var http = _interopDefault(__nccwpck_require__(3685));
 var Url = _interopDefault(__nccwpck_require__(7310));
-var whatwgUrl = _interopDefault(__nccwpck_require__(8665));
+var whatwgUrl = _interopDefault(__nccwpck_require__(2977));
 var https = _interopDefault(__nccwpck_require__(5687));
 var zlib = _interopDefault(__nccwpck_require__(9796));
 
@@ -10488,14 +12071,14 @@ exports.AbortError = AbortError;
 
 /***/ }),
 
-/***/ 4256:
+/***/ 7776:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
 var punycode = __nccwpck_require__(5477);
-var mappingTable = __nccwpck_require__(2020);
+var mappingTable = __nccwpck_require__(7873);
 
 var PROCESSING_OPTIONS = {
   TRANSITIONAL: 0,
@@ -10689,933 +12272,7 @@ module.exports.PROCESSING_OPTIONS = PROCESSING_OPTIONS;
 
 /***/ }),
 
-/***/ 4294:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-module.exports = __nccwpck_require__(4219);
-
-
-/***/ }),
-
-/***/ 4219:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-var net = __nccwpck_require__(1808);
-var tls = __nccwpck_require__(4404);
-var http = __nccwpck_require__(3685);
-var https = __nccwpck_require__(5687);
-var events = __nccwpck_require__(2361);
-var assert = __nccwpck_require__(9491);
-var util = __nccwpck_require__(3837);
-
-
-exports.httpOverHttp = httpOverHttp;
-exports.httpsOverHttp = httpsOverHttp;
-exports.httpOverHttps = httpOverHttps;
-exports.httpsOverHttps = httpsOverHttps;
-
-
-function httpOverHttp(options) {
-  var agent = new TunnelingAgent(options);
-  agent.request = http.request;
-  return agent;
-}
-
-function httpsOverHttp(options) {
-  var agent = new TunnelingAgent(options);
-  agent.request = http.request;
-  agent.createSocket = createSecureSocket;
-  agent.defaultPort = 443;
-  return agent;
-}
-
-function httpOverHttps(options) {
-  var agent = new TunnelingAgent(options);
-  agent.request = https.request;
-  return agent;
-}
-
-function httpsOverHttps(options) {
-  var agent = new TunnelingAgent(options);
-  agent.request = https.request;
-  agent.createSocket = createSecureSocket;
-  agent.defaultPort = 443;
-  return agent;
-}
-
-
-function TunnelingAgent(options) {
-  var self = this;
-  self.options = options || {};
-  self.proxyOptions = self.options.proxy || {};
-  self.maxSockets = self.options.maxSockets || http.Agent.defaultMaxSockets;
-  self.requests = [];
-  self.sockets = [];
-
-  self.on('free', function onFree(socket, host, port, localAddress) {
-    var options = toOptions(host, port, localAddress);
-    for (var i = 0, len = self.requests.length; i < len; ++i) {
-      var pending = self.requests[i];
-      if (pending.host === options.host && pending.port === options.port) {
-        // Detect the request to connect same origin server,
-        // reuse the connection.
-        self.requests.splice(i, 1);
-        pending.request.onSocket(socket);
-        return;
-      }
-    }
-    socket.destroy();
-    self.removeSocket(socket);
-  });
-}
-util.inherits(TunnelingAgent, events.EventEmitter);
-
-TunnelingAgent.prototype.addRequest = function addRequest(req, host, port, localAddress) {
-  var self = this;
-  var options = mergeOptions({request: req}, self.options, toOptions(host, port, localAddress));
-
-  if (self.sockets.length >= this.maxSockets) {
-    // We are over limit so we'll add it to the queue.
-    self.requests.push(options);
-    return;
-  }
-
-  // If we are under maxSockets create a new one.
-  self.createSocket(options, function(socket) {
-    socket.on('free', onFree);
-    socket.on('close', onCloseOrRemove);
-    socket.on('agentRemove', onCloseOrRemove);
-    req.onSocket(socket);
-
-    function onFree() {
-      self.emit('free', socket, options);
-    }
-
-    function onCloseOrRemove(err) {
-      self.removeSocket(socket);
-      socket.removeListener('free', onFree);
-      socket.removeListener('close', onCloseOrRemove);
-      socket.removeListener('agentRemove', onCloseOrRemove);
-    }
-  });
-};
-
-TunnelingAgent.prototype.createSocket = function createSocket(options, cb) {
-  var self = this;
-  var placeholder = {};
-  self.sockets.push(placeholder);
-
-  var connectOptions = mergeOptions({}, self.proxyOptions, {
-    method: 'CONNECT',
-    path: options.host + ':' + options.port,
-    agent: false,
-    headers: {
-      host: options.host + ':' + options.port
-    }
-  });
-  if (options.localAddress) {
-    connectOptions.localAddress = options.localAddress;
-  }
-  if (connectOptions.proxyAuth) {
-    connectOptions.headers = connectOptions.headers || {};
-    connectOptions.headers['Proxy-Authorization'] = 'Basic ' +
-        new Buffer(connectOptions.proxyAuth).toString('base64');
-  }
-
-  debug('making CONNECT request');
-  var connectReq = self.request(connectOptions);
-  connectReq.useChunkedEncodingByDefault = false; // for v0.6
-  connectReq.once('response', onResponse); // for v0.6
-  connectReq.once('upgrade', onUpgrade);   // for v0.6
-  connectReq.once('connect', onConnect);   // for v0.7 or later
-  connectReq.once('error', onError);
-  connectReq.end();
-
-  function onResponse(res) {
-    // Very hacky. This is necessary to avoid http-parser leaks.
-    res.upgrade = true;
-  }
-
-  function onUpgrade(res, socket, head) {
-    // Hacky.
-    process.nextTick(function() {
-      onConnect(res, socket, head);
-    });
-  }
-
-  function onConnect(res, socket, head) {
-    connectReq.removeAllListeners();
-    socket.removeAllListeners();
-
-    if (res.statusCode !== 200) {
-      debug('tunneling socket could not be established, statusCode=%d',
-        res.statusCode);
-      socket.destroy();
-      var error = new Error('tunneling socket could not be established, ' +
-        'statusCode=' + res.statusCode);
-      error.code = 'ECONNRESET';
-      options.request.emit('error', error);
-      self.removeSocket(placeholder);
-      return;
-    }
-    if (head.length > 0) {
-      debug('got illegal response body from proxy');
-      socket.destroy();
-      var error = new Error('got illegal response body from proxy');
-      error.code = 'ECONNRESET';
-      options.request.emit('error', error);
-      self.removeSocket(placeholder);
-      return;
-    }
-    debug('tunneling connection has established');
-    self.sockets[self.sockets.indexOf(placeholder)] = socket;
-    return cb(socket);
-  }
-
-  function onError(cause) {
-    connectReq.removeAllListeners();
-
-    debug('tunneling socket could not be established, cause=%s\n',
-          cause.message, cause.stack);
-    var error = new Error('tunneling socket could not be established, ' +
-                          'cause=' + cause.message);
-    error.code = 'ECONNRESET';
-    options.request.emit('error', error);
-    self.removeSocket(placeholder);
-  }
-};
-
-TunnelingAgent.prototype.removeSocket = function removeSocket(socket) {
-  var pos = this.sockets.indexOf(socket)
-  if (pos === -1) {
-    return;
-  }
-  this.sockets.splice(pos, 1);
-
-  var pending = this.requests.shift();
-  if (pending) {
-    // If we have pending requests and a socket gets closed a new one
-    // needs to be created to take over in the pool for the one that closed.
-    this.createSocket(pending, function(socket) {
-      pending.request.onSocket(socket);
-    });
-  }
-};
-
-function createSecureSocket(options, cb) {
-  var self = this;
-  TunnelingAgent.prototype.createSocket.call(self, options, function(socket) {
-    var hostHeader = options.request.getHeader('host');
-    var tlsOptions = mergeOptions({}, self.options, {
-      socket: socket,
-      servername: hostHeader ? hostHeader.replace(/:.*$/, '') : options.host
-    });
-
-    // 0 is dummy port for v0.6
-    var secureSocket = tls.connect(0, tlsOptions);
-    self.sockets[self.sockets.indexOf(socket)] = secureSocket;
-    cb(secureSocket);
-  });
-}
-
-
-function toOptions(host, port, localAddress) {
-  if (typeof host === 'string') { // since v0.10
-    return {
-      host: host,
-      port: port,
-      localAddress: localAddress
-    };
-  }
-  return host; // for v0.11 or later
-}
-
-function mergeOptions(target) {
-  for (var i = 1, len = arguments.length; i < len; ++i) {
-    var overrides = arguments[i];
-    if (typeof overrides === 'object') {
-      var keys = Object.keys(overrides);
-      for (var j = 0, keyLen = keys.length; j < keyLen; ++j) {
-        var k = keys[j];
-        if (overrides[k] !== undefined) {
-          target[k] = overrides[k];
-        }
-      }
-    }
-  }
-  return target;
-}
-
-
-var debug;
-if (process.env.NODE_DEBUG && /\btunnel\b/.test(process.env.NODE_DEBUG)) {
-  debug = function() {
-    var args = Array.prototype.slice.call(arguments);
-    if (typeof args[0] === 'string') {
-      args[0] = 'TUNNEL: ' + args[0];
-    } else {
-      args.unshift('TUNNEL:');
-    }
-    console.error.apply(console, args);
-  }
-} else {
-  debug = function() {};
-}
-exports.debug = debug; // for test
-
-
-/***/ }),
-
-/***/ 5840:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-Object.defineProperty(exports, "v1", ({
-  enumerable: true,
-  get: function () {
-    return _v.default;
-  }
-}));
-Object.defineProperty(exports, "v3", ({
-  enumerable: true,
-  get: function () {
-    return _v2.default;
-  }
-}));
-Object.defineProperty(exports, "v4", ({
-  enumerable: true,
-  get: function () {
-    return _v3.default;
-  }
-}));
-Object.defineProperty(exports, "v5", ({
-  enumerable: true,
-  get: function () {
-    return _v4.default;
-  }
-}));
-Object.defineProperty(exports, "NIL", ({
-  enumerable: true,
-  get: function () {
-    return _nil.default;
-  }
-}));
-Object.defineProperty(exports, "version", ({
-  enumerable: true,
-  get: function () {
-    return _version.default;
-  }
-}));
-Object.defineProperty(exports, "validate", ({
-  enumerable: true,
-  get: function () {
-    return _validate.default;
-  }
-}));
-Object.defineProperty(exports, "stringify", ({
-  enumerable: true,
-  get: function () {
-    return _stringify.default;
-  }
-}));
-Object.defineProperty(exports, "parse", ({
-  enumerable: true,
-  get: function () {
-    return _parse.default;
-  }
-}));
-
-var _v = _interopRequireDefault(__nccwpck_require__(8628));
-
-var _v2 = _interopRequireDefault(__nccwpck_require__(6409));
-
-var _v3 = _interopRequireDefault(__nccwpck_require__(5122));
-
-var _v4 = _interopRequireDefault(__nccwpck_require__(9120));
-
-var _nil = _interopRequireDefault(__nccwpck_require__(5332));
-
-var _version = _interopRequireDefault(__nccwpck_require__(1595));
-
-var _validate = _interopRequireDefault(__nccwpck_require__(6900));
-
-var _stringify = _interopRequireDefault(__nccwpck_require__(8950));
-
-var _parse = _interopRequireDefault(__nccwpck_require__(2746));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/***/ }),
-
-/***/ 4569:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = void 0;
-
-var _crypto = _interopRequireDefault(__nccwpck_require__(6113));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function md5(bytes) {
-  if (Array.isArray(bytes)) {
-    bytes = Buffer.from(bytes);
-  } else if (typeof bytes === 'string') {
-    bytes = Buffer.from(bytes, 'utf8');
-  }
-
-  return _crypto.default.createHash('md5').update(bytes).digest();
-}
-
-var _default = md5;
-exports["default"] = _default;
-
-/***/ }),
-
-/***/ 5332:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = void 0;
-var _default = '00000000-0000-0000-0000-000000000000';
-exports["default"] = _default;
-
-/***/ }),
-
-/***/ 2746:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = void 0;
-
-var _validate = _interopRequireDefault(__nccwpck_require__(6900));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function parse(uuid) {
-  if (!(0, _validate.default)(uuid)) {
-    throw TypeError('Invalid UUID');
-  }
-
-  let v;
-  const arr = new Uint8Array(16); // Parse ########-....-....-....-............
-
-  arr[0] = (v = parseInt(uuid.slice(0, 8), 16)) >>> 24;
-  arr[1] = v >>> 16 & 0xff;
-  arr[2] = v >>> 8 & 0xff;
-  arr[3] = v & 0xff; // Parse ........-####-....-....-............
-
-  arr[4] = (v = parseInt(uuid.slice(9, 13), 16)) >>> 8;
-  arr[5] = v & 0xff; // Parse ........-....-####-....-............
-
-  arr[6] = (v = parseInt(uuid.slice(14, 18), 16)) >>> 8;
-  arr[7] = v & 0xff; // Parse ........-....-....-####-............
-
-  arr[8] = (v = parseInt(uuid.slice(19, 23), 16)) >>> 8;
-  arr[9] = v & 0xff; // Parse ........-....-....-....-############
-  // (Use "/" to avoid 32-bit truncation when bit-shifting high-order bytes)
-
-  arr[10] = (v = parseInt(uuid.slice(24, 36), 16)) / 0x10000000000 & 0xff;
-  arr[11] = v / 0x100000000 & 0xff;
-  arr[12] = v >>> 24 & 0xff;
-  arr[13] = v >>> 16 & 0xff;
-  arr[14] = v >>> 8 & 0xff;
-  arr[15] = v & 0xff;
-  return arr;
-}
-
-var _default = parse;
-exports["default"] = _default;
-
-/***/ }),
-
-/***/ 814:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = void 0;
-var _default = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|00000000-0000-0000-0000-000000000000)$/i;
-exports["default"] = _default;
-
-/***/ }),
-
-/***/ 807:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = rng;
-
-var _crypto = _interopRequireDefault(__nccwpck_require__(6113));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-const rnds8Pool = new Uint8Array(256); // # of random values to pre-allocate
-
-let poolPtr = rnds8Pool.length;
-
-function rng() {
-  if (poolPtr > rnds8Pool.length - 16) {
-    _crypto.default.randomFillSync(rnds8Pool);
-
-    poolPtr = 0;
-  }
-
-  return rnds8Pool.slice(poolPtr, poolPtr += 16);
-}
-
-/***/ }),
-
-/***/ 5274:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = void 0;
-
-var _crypto = _interopRequireDefault(__nccwpck_require__(6113));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function sha1(bytes) {
-  if (Array.isArray(bytes)) {
-    bytes = Buffer.from(bytes);
-  } else if (typeof bytes === 'string') {
-    bytes = Buffer.from(bytes, 'utf8');
-  }
-
-  return _crypto.default.createHash('sha1').update(bytes).digest();
-}
-
-var _default = sha1;
-exports["default"] = _default;
-
-/***/ }),
-
-/***/ 8950:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = void 0;
-
-var _validate = _interopRequireDefault(__nccwpck_require__(6900));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * Convert array of 16 byte values to UUID string format of the form:
- * XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
- */
-const byteToHex = [];
-
-for (let i = 0; i < 256; ++i) {
-  byteToHex.push((i + 0x100).toString(16).substr(1));
-}
-
-function stringify(arr, offset = 0) {
-  // Note: Be careful editing this code!  It's been tuned for performance
-  // and works in ways you may not expect. See https://github.com/uuidjs/uuid/pull/434
-  const uuid = (byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + '-' + byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + '-' + byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + '-' + byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + '-' + byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] + byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]]).toLowerCase(); // Consistency check for valid UUID.  If this throws, it's likely due to one
-  // of the following:
-  // - One or more input array values don't map to a hex octet (leading to
-  // "undefined" in the uuid)
-  // - Invalid input values for the RFC `version` or `variant` fields
-
-  if (!(0, _validate.default)(uuid)) {
-    throw TypeError('Stringified UUID is invalid');
-  }
-
-  return uuid;
-}
-
-var _default = stringify;
-exports["default"] = _default;
-
-/***/ }),
-
-/***/ 8628:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = void 0;
-
-var _rng = _interopRequireDefault(__nccwpck_require__(807));
-
-var _stringify = _interopRequireDefault(__nccwpck_require__(8950));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-// **`v1()` - Generate time-based UUID**
-//
-// Inspired by https://github.com/LiosK/UUID.js
-// and http://docs.python.org/library/uuid.html
-let _nodeId;
-
-let _clockseq; // Previous uuid creation time
-
-
-let _lastMSecs = 0;
-let _lastNSecs = 0; // See https://github.com/uuidjs/uuid for API details
-
-function v1(options, buf, offset) {
-  let i = buf && offset || 0;
-  const b = buf || new Array(16);
-  options = options || {};
-  let node = options.node || _nodeId;
-  let clockseq = options.clockseq !== undefined ? options.clockseq : _clockseq; // node and clockseq need to be initialized to random values if they're not
-  // specified.  We do this lazily to minimize issues related to insufficient
-  // system entropy.  See #189
-
-  if (node == null || clockseq == null) {
-    const seedBytes = options.random || (options.rng || _rng.default)();
-
-    if (node == null) {
-      // Per 4.5, create and 48-bit node id, (47 random bits + multicast bit = 1)
-      node = _nodeId = [seedBytes[0] | 0x01, seedBytes[1], seedBytes[2], seedBytes[3], seedBytes[4], seedBytes[5]];
-    }
-
-    if (clockseq == null) {
-      // Per 4.2.2, randomize (14 bit) clockseq
-      clockseq = _clockseq = (seedBytes[6] << 8 | seedBytes[7]) & 0x3fff;
-    }
-  } // UUID timestamps are 100 nano-second units since the Gregorian epoch,
-  // (1582-10-15 00:00).  JSNumbers aren't precise enough for this, so
-  // time is handled internally as 'msecs' (integer milliseconds) and 'nsecs'
-  // (100-nanoseconds offset from msecs) since unix epoch, 1970-01-01 00:00.
-
-
-  let msecs = options.msecs !== undefined ? options.msecs : Date.now(); // Per 4.2.1.2, use count of uuid's generated during the current clock
-  // cycle to simulate higher resolution clock
-
-  let nsecs = options.nsecs !== undefined ? options.nsecs : _lastNSecs + 1; // Time since last uuid creation (in msecs)
-
-  const dt = msecs - _lastMSecs + (nsecs - _lastNSecs) / 10000; // Per 4.2.1.2, Bump clockseq on clock regression
-
-  if (dt < 0 && options.clockseq === undefined) {
-    clockseq = clockseq + 1 & 0x3fff;
-  } // Reset nsecs if clock regresses (new clockseq) or we've moved onto a new
-  // time interval
-
-
-  if ((dt < 0 || msecs > _lastMSecs) && options.nsecs === undefined) {
-    nsecs = 0;
-  } // Per 4.2.1.2 Throw error if too many uuids are requested
-
-
-  if (nsecs >= 10000) {
-    throw new Error("uuid.v1(): Can't create more than 10M uuids/sec");
-  }
-
-  _lastMSecs = msecs;
-  _lastNSecs = nsecs;
-  _clockseq = clockseq; // Per 4.1.4 - Convert from unix epoch to Gregorian epoch
-
-  msecs += 12219292800000; // `time_low`
-
-  const tl = ((msecs & 0xfffffff) * 10000 + nsecs) % 0x100000000;
-  b[i++] = tl >>> 24 & 0xff;
-  b[i++] = tl >>> 16 & 0xff;
-  b[i++] = tl >>> 8 & 0xff;
-  b[i++] = tl & 0xff; // `time_mid`
-
-  const tmh = msecs / 0x100000000 * 10000 & 0xfffffff;
-  b[i++] = tmh >>> 8 & 0xff;
-  b[i++] = tmh & 0xff; // `time_high_and_version`
-
-  b[i++] = tmh >>> 24 & 0xf | 0x10; // include version
-
-  b[i++] = tmh >>> 16 & 0xff; // `clock_seq_hi_and_reserved` (Per 4.2.2 - include variant)
-
-  b[i++] = clockseq >>> 8 | 0x80; // `clock_seq_low`
-
-  b[i++] = clockseq & 0xff; // `node`
-
-  for (let n = 0; n < 6; ++n) {
-    b[i + n] = node[n];
-  }
-
-  return buf || (0, _stringify.default)(b);
-}
-
-var _default = v1;
-exports["default"] = _default;
-
-/***/ }),
-
-/***/ 6409:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = void 0;
-
-var _v = _interopRequireDefault(__nccwpck_require__(5998));
-
-var _md = _interopRequireDefault(__nccwpck_require__(4569));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-const v3 = (0, _v.default)('v3', 0x30, _md.default);
-var _default = v3;
-exports["default"] = _default;
-
-/***/ }),
-
-/***/ 5998:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = _default;
-exports.URL = exports.DNS = void 0;
-
-var _stringify = _interopRequireDefault(__nccwpck_require__(8950));
-
-var _parse = _interopRequireDefault(__nccwpck_require__(2746));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function stringToBytes(str) {
-  str = unescape(encodeURIComponent(str)); // UTF8 escape
-
-  const bytes = [];
-
-  for (let i = 0; i < str.length; ++i) {
-    bytes.push(str.charCodeAt(i));
-  }
-
-  return bytes;
-}
-
-const DNS = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
-exports.DNS = DNS;
-const URL = '6ba7b811-9dad-11d1-80b4-00c04fd430c8';
-exports.URL = URL;
-
-function _default(name, version, hashfunc) {
-  function generateUUID(value, namespace, buf, offset) {
-    if (typeof value === 'string') {
-      value = stringToBytes(value);
-    }
-
-    if (typeof namespace === 'string') {
-      namespace = (0, _parse.default)(namespace);
-    }
-
-    if (namespace.length !== 16) {
-      throw TypeError('Namespace must be array-like (16 iterable integer values, 0-255)');
-    } // Compute hash of namespace and value, Per 4.3
-    // Future: Use spread syntax when supported on all platforms, e.g. `bytes =
-    // hashfunc([...namespace, ... value])`
-
-
-    let bytes = new Uint8Array(16 + value.length);
-    bytes.set(namespace);
-    bytes.set(value, namespace.length);
-    bytes = hashfunc(bytes);
-    bytes[6] = bytes[6] & 0x0f | version;
-    bytes[8] = bytes[8] & 0x3f | 0x80;
-
-    if (buf) {
-      offset = offset || 0;
-
-      for (let i = 0; i < 16; ++i) {
-        buf[offset + i] = bytes[i];
-      }
-
-      return buf;
-    }
-
-    return (0, _stringify.default)(bytes);
-  } // Function#name is not settable on some platforms (#270)
-
-
-  try {
-    generateUUID.name = name; // eslint-disable-next-line no-empty
-  } catch (err) {} // For CommonJS default export support
-
-
-  generateUUID.DNS = DNS;
-  generateUUID.URL = URL;
-  return generateUUID;
-}
-
-/***/ }),
-
-/***/ 5122:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = void 0;
-
-var _rng = _interopRequireDefault(__nccwpck_require__(807));
-
-var _stringify = _interopRequireDefault(__nccwpck_require__(8950));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function v4(options, buf, offset) {
-  options = options || {};
-
-  const rnds = options.random || (options.rng || _rng.default)(); // Per 4.4, set bits for version and `clock_seq_hi_and_reserved`
-
-
-  rnds[6] = rnds[6] & 0x0f | 0x40;
-  rnds[8] = rnds[8] & 0x3f | 0x80; // Copy bytes to buffer, if provided
-
-  if (buf) {
-    offset = offset || 0;
-
-    for (let i = 0; i < 16; ++i) {
-      buf[offset + i] = rnds[i];
-    }
-
-    return buf;
-  }
-
-  return (0, _stringify.default)(rnds);
-}
-
-var _default = v4;
-exports["default"] = _default;
-
-/***/ }),
-
-/***/ 9120:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = void 0;
-
-var _v = _interopRequireDefault(__nccwpck_require__(5998));
-
-var _sha = _interopRequireDefault(__nccwpck_require__(5274));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-const v5 = (0, _v.default)('v5', 0x50, _sha.default);
-var _default = v5;
-exports["default"] = _default;
-
-/***/ }),
-
-/***/ 6900:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = void 0;
-
-var _regex = _interopRequireDefault(__nccwpck_require__(814));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function validate(uuid) {
-  return typeof uuid === 'string' && _regex.default.test(uuid);
-}
-
-var _default = validate;
-exports["default"] = _default;
-
-/***/ }),
-
-/***/ 1595:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports["default"] = void 0;
-
-var _validate = _interopRequireDefault(__nccwpck_require__(6900));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function version(uuid) {
-  if (!(0, _validate.default)(uuid)) {
-    throw TypeError('Invalid UUID');
-  }
-
-  return parseInt(uuid.substr(14, 1), 16);
-}
-
-var _default = version;
-exports["default"] = _default;
-
-/***/ }),
-
-/***/ 4886:
+/***/ 7707:
 /***/ ((module) => {
 
 "use strict";
@@ -11812,12 +12469,12 @@ conversions["RegExp"] = function (V, opts) {
 
 /***/ }),
 
-/***/ 7537:
+/***/ 6816:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
-const usm = __nccwpck_require__(2158);
+const usm = __nccwpck_require__(4955);
 
 exports.implementation = class URLImpl {
   constructor(constructorArgs) {
@@ -12020,15 +12677,15 @@ exports.implementation = class URLImpl {
 
 /***/ }),
 
-/***/ 3394:
+/***/ 2036:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-const conversions = __nccwpck_require__(4886);
-const utils = __nccwpck_require__(3185);
-const Impl = __nccwpck_require__(7537);
+const conversions = __nccwpck_require__(7707);
+const utils = __nccwpck_require__(7800);
+const Impl = __nccwpck_require__(6816);
 
 const impl = utils.implSymbol;
 
@@ -12224,32 +12881,32 @@ module.exports = {
 
 /***/ }),
 
-/***/ 8665:
+/***/ 2977:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-exports.URL = __nccwpck_require__(3394)["interface"];
-exports.serializeURL = __nccwpck_require__(2158).serializeURL;
-exports.serializeURLOrigin = __nccwpck_require__(2158).serializeURLOrigin;
-exports.basicURLParse = __nccwpck_require__(2158).basicURLParse;
-exports.setTheUsername = __nccwpck_require__(2158).setTheUsername;
-exports.setThePassword = __nccwpck_require__(2158).setThePassword;
-exports.serializeHost = __nccwpck_require__(2158).serializeHost;
-exports.serializeInteger = __nccwpck_require__(2158).serializeInteger;
-exports.parseURL = __nccwpck_require__(2158).parseURL;
+exports.URL = __nccwpck_require__(2036)["interface"];
+exports.serializeURL = __nccwpck_require__(4955).serializeURL;
+exports.serializeURLOrigin = __nccwpck_require__(4955).serializeURLOrigin;
+exports.basicURLParse = __nccwpck_require__(4955).basicURLParse;
+exports.setTheUsername = __nccwpck_require__(4955).setTheUsername;
+exports.setThePassword = __nccwpck_require__(4955).setThePassword;
+exports.serializeHost = __nccwpck_require__(4955).serializeHost;
+exports.serializeInteger = __nccwpck_require__(4955).serializeInteger;
+exports.parseURL = __nccwpck_require__(4955).parseURL;
 
 
 /***/ }),
 
-/***/ 2158:
+/***/ 4955:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 const punycode = __nccwpck_require__(5477);
-const tr46 = __nccwpck_require__(4256);
+const tr46 = __nccwpck_require__(7776);
 
 const specialSchemes = {
   ftp: 21,
@@ -13548,7 +14205,7 @@ module.exports.parseURL = function (input, options) {
 
 /***/ }),
 
-/***/ 3185:
+/***/ 7800:
 /***/ ((module) => {
 
 "use strict";
@@ -13573,66 +14230,6 @@ module.exports.implForWrapper = function (wrapper) {
 };
 
 
-
-/***/ }),
-
-/***/ 2602:
-/***/ ((module, __webpack_exports__, __nccwpck_require__) => {
-
-"use strict";
-__nccwpck_require__.a(module, async (__webpack_handle_async_dependencies__, __webpack_async_result__) => { try {
-__nccwpck_require__.r(__webpack_exports__);
-/* harmony import */ var firebolt_sdk__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(6981);
-const core = __nccwpck_require__(2186);
-
-const instanceType = core.getInput('instance-type');
-const engineScale = parseInt(core.getInput('engine-scale'));
-const suffix = core.getInput('db_suffix').replaceAll(".", "").replaceAll("-", "");
-
-
-
-const firebolt = (0,firebolt_sdk__WEBPACK_IMPORTED_MODULE_0__/* .Firebolt */ .re)({
-    apiEndpoint: core.getInput('api-endpoint'),
-});
-
-await firebolt.connect({
-    auth: {
-        client_id: core.getInput('firebolt-client-id'),
-        client_secret: core.getInput('firebolt-client-secret'),
-    },
-    account: core.getInput('account')
-});
-
-const databaseName = `integration_testing_${suffix}_${Date.now()}`;
-let database = await firebolt.resourceManager.database.create(databaseName);
-
-core.setOutput('database_name', database.name);
-core.saveState('database_name', database.name);
-
-let engine = await firebolt.resourceManager.engine.create(databaseName, {
-    scale: engineScale,
-    spec: instanceType
-});
-await firebolt.resourceManager.engine.attachToDatabase(engine, database);
-
-const stoppedEngineName = databaseName + "_stopped"
-const stoppedEngine = await firebolt.resourceManager.engine.create(stoppedEngineName, {
-    scale: engineScale,
-    spec: instanceType
-});
-await firebolt.resourceManager.engine.attachToDatabase(stoppedEngine, database);
-
-await engine.start();
-
-core.setOutput('engine_name', engine.name);
-core.saveState('engine_name', engine.name);
-core.setOutput('engine_url', engine.endpoint);
-
-core.setOutput('stopped_engine_name', stoppedEngine.name);
-core.saveState('stopped_engine_name', stoppedEngine.name);
-core.setOutput('stopped_engine_url', stoppedEngine.endpoint);
-__webpack_async_result__();
-} catch(e) { __webpack_async_result__(e); } }, 1);
 
 /***/ }),
 
@@ -13764,15 +14361,15 @@ module.exports = require("zlib");
 
 /***/ }),
 
-/***/ 4177:
+/***/ 9225:
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"name":"firebolt-sdk","version":"1.0.0-alpha.0","description":"Official firebolt Node.JS sdk","main":"./build/src/index.js","types":"./build/src/index.d.ts","engines":{"node":">=12.0"},"scripts":{"build":"rm -fr ./build && tsc -p tsconfig.lib.json","release":"standard-version","test":"jest","test:ci":"jest --ci --bail","type-check":"tsc -p tsconfig.lib.json"},"prettier":{"tabWidth":2,"trailingComma":"none","arrowParens":"avoid"},"author":"","license":"Apache-2.0","devDependencies":{"@types/jest":"^27.5.2","@types/node-fetch":"^2.5.12","@typescript-eslint/eslint-plugin":"^5.4.0","@typescript-eslint/parser":"^5.4.0","dotenv":"^16.0.1","eslint":"^8.2.0","eslint-config-prettier":"^8.3.0","eslint-plugin-prettier":"^4.0.0","jest":"^27.5.1","msw":"^0.45.0","prettier":"^2.4.1","standard-version":"^9.3.2","ts-jest":"^27.0.7","ts-jest-resolver":"^2.0.0","typescript":"^4.7.4"},"dependencies":{"@types/json-bigint":"^1.0.1","abort-controller":"^3.0.0","json-bigint":"^1.0.0","node-fetch":"^2.6.6"}}');
+module.exports = JSON.parse('{"name":"firebolt-sdk","version":"1.0.0","description":"Official firebolt Node.JS sdk","main":"./build/src/index.js","types":"./build/src/index.d.ts","engines":{"node":">=12.0"},"scripts":{"build":"rm -fr ./build && tsc -p tsconfig.lib.json","release":"standard-version","test":"jest","test:ci":"jest --ci --bail","type-check":"tsc -p tsconfig.lib.json"},"prettier":{"tabWidth":2,"trailingComma":"none","arrowParens":"avoid"},"author":"","license":"Apache-2.0","devDependencies":{"@types/jest":"^27.5.2","@types/node-fetch":"^2.5.12","@typescript-eslint/eslint-plugin":"^5.4.0","@typescript-eslint/parser":"^5.4.0","dotenv":"^16.0.1","eslint":"^8.2.0","eslint-config-prettier":"^8.3.0","eslint-plugin-prettier":"^4.0.0","jest":"^27.5.1","msw":"^0.45.0","nock":"^13.4.0","prettier":"^2.4.1","standard-version":"^9.3.2","ts-jest":"^27.0.7","ts-jest-resolver":"^2.0.0","typescript":"^4.7.4"},"dependencies":{"@types/json-bigint":"^1.0.1","abort-controller":"^3.0.0","json-bigint":"^1.0.0","node-fetch":"^2.6.6"}}');
 
 /***/ }),
 
-/***/ 2020:
+/***/ 7873:
 /***/ ((module) => {
 
 "use strict";
