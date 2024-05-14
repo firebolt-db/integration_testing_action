@@ -2688,10 +2688,10 @@ const suffix = core.getInput('db_suffix').replaceAll(".", "").replaceAll("-", ""
 
 // Setting not user-facing settings
 if (core.getInput('engine-version')) {
-  console.log(`Setting engine version to ${core.getInput('engine-version')}`);
+  console.info(`Setting engine version to ${core.getInput('engine-version')}`);
   process.env.FB_INTERNAL_OPTIONS_ENGINE_VERSION = core.getInput('engine-version');
 } else {
-  console.log(`Using default engine version`);
+  console.info(`Using default engine version`);
 }
 
 
