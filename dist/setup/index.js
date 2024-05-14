@@ -2703,7 +2703,6 @@ await firebolt.connect({
 
 const databaseName = `integration_testing_${suffix}_${Date.now()}`;
 
-let database;
 (async () => {
   // Setting not user-facing settings
   if (core.getInput('engine-version')) {
@@ -2712,9 +2711,11 @@ let database;
   } else {
     console.info(`Using default engine version`);
   }
-  database = await firebolt.resourceManager.database.create(databaseName);
+  await firebolt.resourceManager.database.create(databaseName);
 })();
 
+
+let database = await firebolt.resourceManager.database.getByName(databaseName);
 core.setOutput('database_name', database.name);
 core.saveState('database_name', database.name);
 
