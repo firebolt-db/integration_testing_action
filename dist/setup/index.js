@@ -2708,26 +2708,29 @@ let database = await firebolt.resourceManager.database.create(databaseName);
 core.setOutput('database_name', database.name);
 core.saveState('database_name', database.name);
 
-(async () => {
-  // Setting not user-facing settings
-  if (core.getInput('engine-version')) {
-    console.info(`Setting engine version to ${core.getInput('engine-version')}`);
-    process.env.FB_INTERNAL_OPTIONS_ENGINE_VERSION = core.getInput('engine-version');
-  } else {
-    console.info(`Using default engine version`);
-  }
+// (async () => {
+// Setting not user-facing settings
+if (core.getInput('engine-version')) {
+  console.info(`Setting engine version to ${core.getInput('engine-version')}`);
+  process.env.FB_INTERNAL_OPTIONS_ENGINE_VERSION = core.getInput('engine-version');
+} else {
+  console.info(`Using default engine version`);
+}
 
-  await firebolt.resourceManager.engine.create(databaseName, {
-      scale: engineScale,
-      spec: instanceType
-  });
-
-
-  await firebolt.resourceManager.engine.create(stoppedEngineName, {
+await firebolt.resourceManager.engine.create(databaseName, {
     scale: engineScale,
     spec: instanceType
-  });
-})();
+});
+
+
+await firebolt.resourceManager.engine.create(stoppedEngineName, {
+  scale: engineScale,
+  spec: instanceType
+});
+// })();
+
+// exit here for now
+exit(0);
 
 const engine = await firebolt.resourceManager.engine.getByName(databaseName);
 const stoppedEngine = await firebolt.resourceManager.engine.getByName(stoppedEngineName);
