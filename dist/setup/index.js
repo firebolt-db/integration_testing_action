@@ -2702,6 +2702,11 @@ await firebolt.connect({
 });
 
 const databaseName = `integration_testing_${suffix}_${Date.now()}`;
+const stoppedEngineName = databaseName + "_stopped"
+
+let database = await firebolt.resourceManager.database.create(databaseName);
+core.setOutput('database_name', database.name);
+core.saveState('database_name', database.name);
 
 (async () => {
   // Setting not user-facing settings
@@ -2711,25 +2716,23 @@ const databaseName = `integration_testing_${suffix}_${Date.now()}`;
   } else {
     console.info(`Using default engine version`);
   }
-  await firebolt.resourceManager.database.create(databaseName);
+
+  await firebolt.resourceManager.engine.create(databaseName, {
+      scale: engineScale,
+      spec: instanceType
+  });
+
+
+  await firebolt.resourceManager.engine.create(stoppedEngineName, {
+    scale: engineScale,
+    spec: instanceType
+  });
 })();
 
+const engine = firebolt.resourceManager.engine.getByName(databaseName);
+const stoppedEngine = firebolt.resourceManager.engine.getByName(stoppedEngineName);
 
-let database = await firebolt.resourceManager.database.getByName(databaseName);
-core.setOutput('database_name', database.name);
-core.saveState('database_name', database.name);
-
-let engine = await firebolt.resourceManager.engine.create(databaseName, {
-    scale: engineScale,
-    spec: instanceType
-});
 await firebolt.resourceManager.engine.attachToDatabase(engine, database);
-
-const stoppedEngineName = databaseName + "_stopped"
-const stoppedEngine = await firebolt.resourceManager.engine.create(stoppedEngineName, {
-    scale: engineScale,
-    spec: instanceType
-});
 await firebolt.resourceManager.engine.attachToDatabase(stoppedEngine, database);
 
 await engine.start();
