@@ -47,8 +47,8 @@ core.saveState('database_name', database.name);
   });
 })();
 
-const engine = firebolt.resourceManager.engine.getByName(databaseName);
-const stoppedEngine = firebolt.resourceManager.engine.getByName(stoppedEngineName);
+const engine = await firebolt.resourceManager.engine.getByName(databaseName);
+const stoppedEngine = await firebolt.resourceManager.engine.getByName(stoppedEngineName);
 
 await firebolt.resourceManager.engine.attachToDatabase(engine, database);
 await firebolt.resourceManager.engine.attachToDatabase(stoppedEngine, database);
