@@ -5,6 +5,7 @@ const engineScale = parseInt(core.getInput('engine-scale'));
 const suffix = core.getInput('db_suffix').replaceAll(".", "").replaceAll("-", "");
 
 import {Firebolt} from 'firebolt-sdk';
+const { retryWithBackoff } = require('./util');
 
 const firebolt = Firebolt({
     apiEndpoint: core.getInput('api-endpoint'),
@@ -19,25 +20,44 @@ await firebolt.connect({
 });
 
 const databaseName = `integration_testing_${suffix}_${Date.now()}`;
-let database = await firebolt.resourceManager.database.create(databaseName);
+const database = await retryWithBackoff(async () => {
+  return await firebolt.resourceManager.database.create(databaseName);
+});
 
 core.setOutput('database_name', database.name);
 core.saveState('database_name', database.name);
 
-let engine = await firebolt.resourceManager.engine.create(databaseName, {
+// Create engine
+const engine = await retryWithBackoff(async () => {
+  return await firebolt.resourceManager.engine.create(databaseName, {
     scale: engineScale,
     spec: instanceType
+  });
 });
-await firebolt.resourceManager.engine.attachToDatabase(engine, database);
+
+// Attach engine to database
+await retryWithBackoff(async () => {
+  await firebolt.resourceManager.engine.attachToDatabase(engine, database);
+});
 
 const stoppedEngineName = databaseName + "_stopped"
-const stoppedEngine = await firebolt.resourceManager.engine.create(stoppedEngineName, {
+// Create stopped engine
+const stoppedEngine = await retryWithBackoff(async () => {
+  return await firebolt.resourceManager.engine.create(stoppedEngineName, {
     scale: engineScale,
     spec: instanceType
+  });
 });
-await firebolt.resourceManager.engine.attachToDatabase(stoppedEngine, database);
 
-await engine.start();
+// Attach stopped engine to database
+await retryWithBackoff(async () => {
+  await firebolt.resourceManager.engine.attachToDatabase(stoppedEngine, database);
+});
+
+// Start engine
+await retryWithBackoff(async () => {
+  await engine.start();
+});
 
 core.setOutput('engine_name', engine.name);
 core.saveState('engine_name', engine.name);
