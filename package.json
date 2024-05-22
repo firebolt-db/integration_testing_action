@@ -23,6 +23,6 @@
   "dependencies": {
     "@actions/core": "^1.10.0",
     "@vercel/ncc": "^0.36.1",
-    "firebolt-sdk": "^1.3.2"
+    "firebolt-sdk": "^1.4.0"
   }
 }
