@@ -140,7 +140,6 @@ const file_command_1 = __nccwpck_require__(717);
 const utils_1 = __nccwpck_require__(5278);
 const os = __importStar(__nccwpck_require__(2037));
 const path = __importStar(__nccwpck_require__(1017));
-const uuid_1 = __nccwpck_require__(5840);
 const oidc_utils_1 = __nccwpck_require__(8041);
 /**
  * The code to exit an action
@@ -170,20 +169,9 @@ function exportVariable(name, val) {
     process.env[name] = convertedVal;
     const filePath = process.env['GITHUB_ENV'] || '';
     if (filePath) {
-        const delimiter = `ghadelimiter_${uuid_1.v4()}`;
-        // These should realistically never happen, but just in case someone finds a way to exploit uuid generation let's not allow keys or values that contain the delimiter.
-        if (name.includes(delimiter)) {
-            throw new Error(`Unexpected input: name should not contain the delimiter "${delimiter}"`);
-        }
-        if (convertedVal.includes(delimiter)) {
-            throw new Error(`Unexpected input: value should not contain the delimiter "${delimiter}"`);
-        }
-        const commandValue = `${name}<<${delimiter}${os.EOL}${convertedVal}${os.EOL}${delimiter}`;
-        file_command_1.issueCommand('ENV', commandValue);
+        return file_command_1.issueFileCommand('ENV', file_command_1.prepareKeyValueMessage(name, val));
     }
-    else {
-        command_1.issueCommand('set-env', { name }, convertedVal);
-    }
+    command_1.issueCommand('set-env', { name }, convertedVal);
 }
 exports.exportVariable = exportVariable;
 /**
@@ -201,7 +189,7 @@ exports.setSecret = setSecret;
 function addPath(inputPath) {
     const filePath = process.env['GITHUB_PATH'] || '';
     if (filePath) {
-        file_command_1.issueCommand('PATH', inputPath);
+        file_command_1.issueFileCommand('PATH', inputPath);
     }
     else {
         command_1.issueCommand('add-path', {}, inputPath);
@@ -241,7 +229,10 @@ function getMultilineInput(name, options) {
     const inputs = getInput(name, options)
         .split('\n')
         .filter(x => x !== '');
-    return inputs;
+    if (options && options.trimWhitespace === false) {
+        return inputs;
+    }
+    return inputs.map(input => input.trim());
 }
 exports.getMultilineInput = getMultilineInput;
 /**
@@ -274,8 +265,12 @@ exports.getBooleanInput = getBooleanInput;
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function setOutput(name, value) {
+    const filePath = process.env['GITHUB_OUTPUT'] || '';
+    if (filePath) {
+        return file_command_1.issueFileCommand('OUTPUT', file_command_1.prepareKeyValueMessage(name, value));
+    }
     process.stdout.write(os.EOL);
-    command_1.issueCommand('set-output', { name }, value);
+    command_1.issueCommand('set-output', { name }, utils_1.toCommandValue(value));
 }
 exports.setOutput = setOutput;
 /**
@@ -404,7 +399,11 @@ exports.group = group;
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function saveState(name, value) {
-    command_1.issueCommand('save-state', { name }, value);
+    const filePath = process.env['GITHUB_STATE'] || '';
+    if (filePath) {
+        return file_command_1.issueFileCommand('STATE', file_command_1.prepareKeyValueMessage(name, value));
+    }
+    command_1.issueCommand('save-state', { name }, utils_1.toCommandValue(value));
 }
 exports.saveState = saveState;
 /**
@@ -470,13 +469,14 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.issueCommand = void 0;
+exports.prepareKeyValueMessage = exports.issueFileCommand = void 0;
 // We use any as a valid input type
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const fs = __importStar(__nccwpck_require__(7147));
 const os = __importStar(__nccwpck_require__(2037));
+const uuid_1 = __nccwpck_require__(5840);
 const utils_1 = __nccwpck_require__(5278);
-function issueCommand(command, message) {
+function issueFileCommand(command, message) {
     const filePath = process.env[`GITHUB_${command}`];
     if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
@@ -488,7 +488,22 @@ function issueCommand(command, message) {
         encoding: 'utf8'
     });
 }
-exports.issueCommand = issueCommand;
+exports.issueFileCommand = issueFileCommand;
+function prepareKeyValueMessage(key, value) {
+    const delimiter = `ghadelimiter_${uuid_1.v4()}`;
+    const convertedValue = utils_1.toCommandValue(value);
+    // These should realistically never happen, but just in case someone finds a
+    // way to exploit uuid generation let's not allow keys or values that contain
+    // the delimiter.
+    if (key.includes(delimiter)) {
+        throw new Error(`Unexpected input: name should not contain the delimiter "${delimiter}"`);
+    }
+    if (convertedValue.includes(delimiter)) {
+        throw new Error(`Unexpected input: value should not contain the delimiter "${delimiter}"`);
+    }
+    return `${key}<<${delimiter}${os.EOL}${convertedValue}${os.EOL}${delimiter}`;
+}
+exports.prepareKeyValueMessage = prepareKeyValueMessage;
 //# sourceMappingURL=file-command.js.map
 
 /***/ }),
@@ -543,7 +558,7 @@ class OidcClient {
                 .catch(error => {
                 throw new Error(`Failed to get ID Token. \n 
         Error Code : ${error.statusCode}\n 
-        Error Message: ${error.result.message}`);
+        Error Message: ${error.message}`);
             });
             const id_token = (_a = res.result) === null || _a === void 0 ? void 0 : _a.value;
             if (!id_token) {
@@ -7922,7 +7937,7 @@ class EngineService {
             : this.CREATE_PARAMETER_NAMES;
         const internalOptions = this.getInternalOptions();
         // Exlude options that are not set or not allowed for the account version
-        const filteredCreateOptions = Object.fromEntries(Object.entries(createOptions).filter(([key, value]) => value !== undefined && key in createParameterNames));
+        const filteredCreateOptions = Object.fromEntries(Object.entries(createOptions).filter(([key, value]) => value !== undefined && value !== "" && key in createParameterNames));
         if (Object.keys(filteredCreateOptions).length > 0 || internalOptions) {
             query += " WITH ";
         }
@@ -7948,14 +7963,11 @@ class EngineService {
     async attachToDatabase(engine, database) {
         const accountVersion = (await this.context.connection.resolveAccountInfo())
             .infraVersion;
-        if (accountVersion >= 2) {
-            throw new errors_1.DeprecationError({
-                message: "Attach engine is not supported for this account."
-            });
-        }
         const engine_name = engine instanceof model_2.EngineModel ? engine.name : engine;
         const database_name = database instanceof model_1.DatabaseModel ? database.name : database;
-        const query = `ATTACH ENGINE "${engine_name}" TO "${database_name}"`;
+        const query = accountVersion == 1
+            ? `ATTACH ENGINE "${engine_name}" TO "${database_name}"`
+            : `ALTER ENGINE "${engine_name}" SET DEFAULT_DATABASE="${database_name}"`;
         await this.context.connection.execute(query);
     }
 }
@@ -15400,7 +15412,7 @@ module.exports = require("zlib");
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"name":"firebolt-sdk","version":"1.3.2","description":"Official firebolt Node.JS sdk","main":"./build/src/index.js","types":"./build/src/index.d.ts","engines":{"node":">=12.0"},"scripts":{"build":"rm -fr ./build && tsc -p tsconfig.lib.json","release":"standard-version","test":"jest","test:ci":"jest --ci --bail","type-check":"tsc -p tsconfig.lib.json"},"prettier":{"tabWidth":2,"trailingComma":"none","arrowParens":"avoid"},"author":"","license":"Apache-2.0","devDependencies":{"@types/jest":"^27.5.2","@types/node-fetch":"^2.5.12","@typescript-eslint/eslint-plugin":"^5.4.0","@typescript-eslint/parser":"^5.4.0","dotenv":"^16.0.1","eslint":"^8.2.0","eslint-config-prettier":"^8.3.0","eslint-plugin-prettier":"^4.0.0","jest":"^27.5.1","msw":"^0.45.0","nock":"^13.4.0","prettier":"^2.4.1","standard-version":"^9.3.2","ts-jest":"^27.0.7","ts-jest-resolver":"^2.0.0","typescript":"^4.7.4"},"dependencies":{"@types/json-bigint":"^1.0.1","abort-controller":"^3.0.0","agentkeepalive":"^4.5.0","json-bigint":"^1.0.0","node-fetch":"^2.6.6"}}');
+module.exports = JSON.parse('{"name":"firebolt-sdk","version":"1.4.0","description":"Official firebolt Node.JS sdk","main":"./build/src/index.js","types":"./build/src/index.d.ts","engines":{"node":">=12.0"},"scripts":{"build":"rm -fr ./build && tsc -p tsconfig.lib.json","release":"standard-version","test":"jest","test:ci":"jest --ci --bail","type-check":"tsc -p tsconfig.lib.json"},"prettier":{"tabWidth":2,"trailingComma":"none","arrowParens":"avoid"},"author":"","license":"Apache-2.0","devDependencies":{"@types/jest":"^27.5.2","@types/node-fetch":"^2.5.12","@typescript-eslint/eslint-plugin":"^5.4.0","@typescript-eslint/parser":"^5.4.0","dotenv":"^16.0.1","eslint":"^8.2.0","eslint-config-prettier":"^8.3.0","eslint-plugin-prettier":"^4.0.0","jest":"^27.5.1","msw":"^0.45.0","nock":"^13.4.0","prettier":"^2.4.1","standard-version":"^9.3.2","ts-jest":"^27.0.7","ts-jest-resolver":"^2.0.0","typescript":"^4.7.4"},"dependencies":{"@types/json-bigint":"^1.0.1","abort-controller":"^3.0.0","agentkeepalive":"^4.5.0","json-bigint":"^1.0.0","node-fetch":"^2.6.6"}}');
 
 /***/ }),
 
