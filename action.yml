@@ -23,7 +23,7 @@ inputs:
     deprecationMessage: 'region parameter is not used anymore and will be removed in new versions'
   instance-type:
     description: Instance type of the running instance
-    default: 'B1'
+    default: ''
     required: false
   db_suffix:
     description: Suffix to add to db name
