@@ -6295,6 +6295,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Authenticator = void 0;
 const api_1 = __nccwpck_require__(4236);
 const util_1 = __nccwpck_require__(9334);
+const tokenCache_1 = __nccwpck_require__(6346);
 const AUTH_AUDIENCE = "https://api.firebolt.io";
 const AUTH_GRANT_TYPE = "client_credentials";
 class Authenticator {
@@ -6302,6 +6303,43 @@ class Authenticator {
         context.httpClient.authenticator = this;
         this.context = context;
         this.options = options;
+    }
+    getCacheKey() {
+        if (this.isUsernamePassword()) {
+            const auth = this.options.auth;
+            return {
+                clientId: auth.username,
+                secret: auth.password,
+                apiEndpoint: this.context.apiEndpoint
+            };
+        }
+        else if (this.isServiceAccount()) {
+            const auth = this.options.auth;
+            return {
+                clientId: auth.client_id,
+                secret: auth.client_secret,
+                apiEndpoint: this.context.apiEndpoint
+            };
+        }
+        return undefined;
+    }
+    getCache() {
+        var _a;
+        return ((_a = this.options.useCache) !== null && _a !== void 0 ? _a : true) ? tokenCache_1.inMemoryCache : tokenCache_1.noneCache;
+    }
+    clearCache() {
+        const key = this.getCacheKey();
+        key && this.getCache().clearCachedToken(key);
+    }
+    setToken(token, expiresIn) {
+        this.accessToken = token;
+        const key = this.getCacheKey();
+        key && this.getCache().cacheToken(key, token, expiresIn);
+    }
+    getCachedToken() {
+        var _a;
+        const key = this.getCacheKey();
+        return key ? (_a = this.getCache().getCachedToken(key)) === null || _a === void 0 ? void 0 : _a.token : undefined;
     }
     getHeaders() {
         if (this.accessToken) {
@@ -6332,13 +6370,13 @@ class Authenticator {
             password
         });
         this.accessToken = undefined;
-        const { access_token } = await httpClient
+        const { access_token, expires_in } = await httpClient
             .request("POST", url, {
             body,
             retry: false
         })
             .ready();
-        this.accessToken = access_token;
+        this.setToken(access_token, expires_in);
     }
     async authenticateServiceAccount(auth) {
         const { httpClient, apiEndpoint } = this.context;
@@ -6352,7 +6390,7 @@ class Authenticator {
         });
         const url = `${authEndpoint}${api_1.SERVICE_ACCOUNT_LOGIN}`;
         this.accessToken = undefined;
-        const { access_token } = await httpClient
+        const { access_token, expires_in } = await httpClient
             .request("POST", url, {
             retry: false,
             headers: {
@@ -6361,7 +6399,7 @@ class Authenticator {
             body: params
         })
             .ready();
-        this.accessToken = access_token;
+        this.setToken(access_token, expires_in);
     }
     isUsernamePassword() {
         const options = this.options.auth || this.options;
@@ -6375,6 +6413,11 @@ class Authenticator {
     }
     async authenticate() {
         const options = this.options.auth || this.options;
+        const cachedToken = this.getCachedToken();
+        if (cachedToken) {
+            this.accessToken = cachedToken;
+            return;
+        }
         if (this.isUsernamePassword()) {
             await this.authenticateUsernamePassword(options);
             return;
@@ -6524,6 +6567,64 @@ class AccountNotFoundError extends Error {
 }
 exports.AccountNotFoundError = AccountNotFoundError;
 //# sourceMappingURL=errors.js.map
+
+/***/ }),
+
+/***/ 6346:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.noneCache = exports.inMemoryCache = exports.InMemoryCache = exports.NoneCache = void 0;
+class NoneCache {
+    getCachedToken(key) {
+        return null;
+    }
+    cacheToken(key, token, expiresIn) {
+        // Do nothing
+    }
+    clearCachedToken(key) {
+        // Do nothing
+    }
+}
+exports.NoneCache = NoneCache;
+class InMemoryCache {
+    constructor() {
+        this.storage = {};
+    }
+    makeLookupString(key) {
+        return `${key.clientId}:${key.secret}:${key.apiEndpoint}`;
+    }
+    isExpired(record) {
+        return record && Date.now() > record.expiration;
+    }
+    getCachedToken(key) {
+        const lookup = this.makeLookupString(key);
+        const record = this.storage[lookup];
+        if (this.isExpired(record)) {
+            this.clearCachedToken(key);
+            return null;
+        }
+        return record;
+    }
+    cacheToken(key, token, expiresIn) {
+        const lookup = this.makeLookupString(key);
+        const expiration = Date.now() + expiresIn * 1000;
+        this.storage[lookup] = {
+            token,
+            expiration
+        };
+    }
+    clearCachedToken(key) {
+        const lookup = this.makeLookupString(key);
+        delete this.storage[lookup];
+    }
+}
+exports.InMemoryCache = InMemoryCache;
+exports.inMemoryCache = new InMemoryCache();
+exports.noneCache = new NoneCache();
+//# sourceMappingURL=tokenCache.js.map
 
 /***/ }),
 
@@ -6925,7 +7026,7 @@ class ConnectionV2 extends base_1.Connection {
             throw new Error(`Unexpected duplicate entries found for ${engineName} and database ${databaseName}`);
         }
         const [engineUrl, , status] = filteredRows[0];
-        if (status != "Running") {
+        if (status.toLowerCase() != "running") {
             throw new errors_1.ConnectionError({
                 message: `Engine ${engineName} is not running`
             });
@@ -7439,6 +7540,7 @@ class NodeHttpClient {
             agent.destroy();
         };
         const makeRequest = async () => {
+            var _a;
             if (this.authenticator) {
                 const authHeaders = await this.authenticator.getHeaders();
                 Object.assign(headers, authHeaders);
@@ -7459,6 +7561,7 @@ class NodeHttpClient {
             });
             if (response.status === 401 && retry) {
                 try {
+                    this.authenticator.clearCache();
                     await this.authenticator.authenticate();
                 }
                 catch (error) {
@@ -7466,7 +7569,14 @@ class NodeHttpClient {
                         message: "Failed to refresh access token"
                     });
                 }
-                const request = this.request(method, url, options);
+                // Manually unpack options because of typing issues
+                // Force set retry to false to avoid infinite loop
+                const request = this.request(method, url, {
+                    headers: (_a = options === null || options === void 0 ? void 0 : options.headers) !== null && _a !== void 0 ? _a : {},
+                    body: options === null || options === void 0 ? void 0 : options.body,
+                    raw: options === null || options === void 0 ? void 0 : options.raw,
+                    retry: false
+                });
                 return request.ready();
             }
             if (response.status > 300) {
@@ -8140,7 +8250,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.WarmupMethod = exports.EngineType = exports.EngineStatusSummary = exports.processEngineStatus = void 0;
 function processEngineStatus(value) {
     // Translate status from db to an EngineStatusSummary object
-    const enumKey = Object.keys(EngineStatusSummary).find(key => EngineStatusSummary[key] === value);
+    const enumKey = Object.keys(EngineStatusSummary).find(key => EngineStatusSummary[key].toLowerCase() === value.toLowerCase());
     if (enumKey !== undefined) {
         return EngineStatusSummary[enumKey];
     }
@@ -15400,7 +15510,7 @@ module.exports = require("zlib");
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"name":"firebolt-sdk","version":"1.4.0","description":"Official firebolt Node.JS sdk","main":"./build/src/index.js","types":"./build/src/index.d.ts","engines":{"node":">=12.0"},"scripts":{"build":"rm -fr ./build && tsc -p tsconfig.lib.json","release":"standard-version","test":"jest","test:ci":"jest --ci --bail","type-check":"tsc -p tsconfig.lib.json"},"prettier":{"tabWidth":2,"trailingComma":"none","arrowParens":"avoid"},"author":"","license":"Apache-2.0","devDependencies":{"@types/jest":"^27.5.2","@types/node-fetch":"^2.5.12","@typescript-eslint/eslint-plugin":"^5.4.0","@typescript-eslint/parser":"^5.4.0","dotenv":"^16.0.1","eslint":"^8.2.0","eslint-config-prettier":"^8.3.0","eslint-plugin-prettier":"^4.0.0","jest":"^27.5.1","msw":"^0.45.0","nock":"^13.4.0","prettier":"^2.4.1","standard-version":"^9.3.2","ts-jest":"^27.0.7","ts-jest-resolver":"^2.0.0","typescript":"^4.7.4"},"dependencies":{"@types/json-bigint":"^1.0.1","abort-controller":"^3.0.0","agentkeepalive":"^4.5.0","json-bigint":"^1.0.0","node-fetch":"^2.6.6"}}');
+module.exports = JSON.parse('{"name":"firebolt-sdk","version":"1.4.1","description":"Official firebolt Node.JS sdk","main":"./build/src/index.js","types":"./build/src/index.d.ts","engines":{"node":">=12.0"},"scripts":{"build":"rm -fr ./build && tsc -p tsconfig.lib.json","release":"standard-version","test":"jest","test:ci":"jest --ci --bail","type-check":"tsc -p tsconfig.lib.json"},"prettier":{"tabWidth":2,"trailingComma":"none","arrowParens":"avoid"},"author":"","license":"Apache-2.0","devDependencies":{"@types/jest":"^27.5.2","@types/node-fetch":"^2.5.12","@typescript-eslint/eslint-plugin":"^5.4.0","@typescript-eslint/parser":"^5.4.0","dotenv":"^16.0.1","eslint":"^8.2.0","eslint-config-prettier":"^8.3.0","eslint-plugin-prettier":"^4.0.0","jest":"^27.5.1","msw":"^0.45.0","nock":"^13.4.0","prettier":"^2.4.1","standard-version":"^9.3.2","ts-jest":"^27.0.7","ts-jest-resolver":"^2.0.0","typescript":"^4.7.4"},"dependencies":{"@types/json-bigint":"^1.0.1","abort-controller":"^3.0.0","agentkeepalive":"^4.5.0","json-bigint":"^1.0.0","node-fetch":"^2.6.6"}}');
 
 /***/ }),
 
