@@ -49,7 +49,8 @@ try {
   const stopped_engine = await retryWithBackoff(async () => {
     return await firebolt.resourceManager.engine.getByName(stopped_engine_name);
   });
-  if (stopped_engine.current_status_summary === firebolt_sdk__WEBPACK_IMPORTED_MODULE_0__/* .EngineStatusSummary.RUNNING */ .Ne.RUNNING) {
+  core.info('stopped engine status: ' + stopped_engine.current_status_summary);
+  if (stopped_engine.current_status_summary != firebolt_sdk__WEBPACK_IMPORTED_MODULE_0__/* .EngineStatusSummary.STOPPED */ .Ne.STOPPED) {
     await retryWithBackoff(async () => {
       await stopped_engine.stop();
     });

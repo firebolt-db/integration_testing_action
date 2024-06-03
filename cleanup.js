@@ -39,7 +39,8 @@ try {
   const stopped_engine = await retryWithBackoff(async () => {
     return await firebolt.resourceManager.engine.getByName(stopped_engine_name);
   });
-  if (stopped_engine.current_status_summary === EngineStatusSummary.RUNNING) {
+  core.info('stopped engine status: ' + stopped_engine.current_status_summary);
+  if (stopped_engine.current_status_summary != EngineStatusSummary.STOPPED) {
     await retryWithBackoff(async () => {
       await stopped_engine.stop();
     });
