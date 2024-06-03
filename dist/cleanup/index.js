@@ -49,7 +49,7 @@ try {
   const stopped_engine = await retryWithBackoff(async () => {
     return await firebolt.resourceManager.engine.getByName(stopped_engine_name);
   });
-  if (stopped_engine.current_status_summary === EngineStatusSummary.RUNNING) {
+  if (stopped_engine.current_status_summary === firebolt_sdk__WEBPACK_IMPORTED_MODULE_0__/* .EngineStatusSummary.RUNNING */ .Ne.RUNNING) {
     await retryWithBackoff(async () => {
       await stopped_engine.stop();
     });
@@ -58,8 +58,8 @@ try {
     await stopped_engine.delete();
   });
 } catch (e) {
-    failed = true;
-    core.info('failed to cleanup stopped engine: ' + e);
+  failed = true;
+  core.info('failed to cleanup stopped engine: ' + e);
 }
 
 try {
@@ -70,8 +70,8 @@ try {
     await database.delete();
   });
 } catch (e) {
-    failed = true;
-    core.info('failed to cleanup database: ' + e);
+  failed = true;
+  core.info('failed to cleanup database: ' + e);
 }
 
 if (failed) {
@@ -7645,7 +7645,7 @@ exports.NodeHttpClient = NodeHttpClient;
 var __webpack_unused_export__;
 
 __webpack_unused_export__ = ({ value: true });
-__webpack_unused_export__ = __webpack_unused_export__ = __webpack_unused_export__ = __webpack_unused_export__ = __webpack_unused_export__ = __webpack_unused_export__ = __webpack_unused_export__ = __webpack_unused_export__ = __webpack_unused_export__ = __webpack_unused_export__ = __webpack_unused_export__ = exports.re = void 0;
+__webpack_unused_export__ = __webpack_unused_export__ = __webpack_unused_export__ = __webpack_unused_export__ = __webpack_unused_export__ = __webpack_unused_export__ = __webpack_unused_export__ = __webpack_unused_export__ = exports.Ne = __webpack_unused_export__ = __webpack_unused_export__ = exports.re = void 0;
 // node entry point
 const firebolt_1 = __nccwpck_require__(631);
 const node_1 = __nccwpck_require__(9421);
@@ -7661,7 +7661,7 @@ __webpack_unused_export__ = (0, firebolt_1.ResourceClient)({
 var types_1 = __nccwpck_require__(6176);
 __webpack_unused_export__ = ({ enumerable: true, get: function () { return types_1.OutputFormat; } });
 var types_2 = __nccwpck_require__(8335);
-__webpack_unused_export__ = ({ enumerable: true, get: function () { return types_2.EngineStatusSummary; } });
+Object.defineProperty(exports, "Ne", ({ enumerable: true, get: function () { return types_2.EngineStatusSummary; } }));
 var dataTypes_1 = __nccwpck_require__(3058);
 __webpack_unused_export__ = ({ enumerable: true, get: function () { return dataTypes_1.isDateType; } });
 __webpack_unused_export__ = ({ enumerable: true, get: function () { return dataTypes_1.isNumberType; } });
