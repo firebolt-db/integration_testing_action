@@ -49,9 +49,11 @@ try {
   const stopped_engine = await retryWithBackoff(async () => {
     return await firebolt.resourceManager.engine.getByName(stopped_engine_name);
   });
-  await retryWithBackoff(async () => {
-    await stopped_engine.stop();
-  });
+  if (stopped_engine.current_status_summary === EngineStatusSummary.RUNNING) {
+    await retryWithBackoff(async () => {
+      await stopped_engine.stop();
+    });
+  }
   await retryWithBackoff(async () => {
     await stopped_engine.delete();
   });
