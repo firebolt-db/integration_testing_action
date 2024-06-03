@@ -1,5 +1,5 @@
 const core = require('@actions/core');
-import {Firebolt} from 'firebolt-sdk';
+import { EngineStatusSummary, Firebolt } from 'firebolt-sdk';
 const { retryWithBackoff } = require('./util');
 
 const firebolt = Firebolt({
@@ -39,12 +39,18 @@ try {
   const stopped_engine = await retryWithBackoff(async () => {
     return await firebolt.resourceManager.engine.getByName(stopped_engine_name);
   });
+  core.info('stopped engine status: ' + stopped_engine.current_status_summary);
+  if (stopped_engine.current_status_summary != EngineStatusSummary.STOPPED) {
+    await retryWithBackoff(async () => {
+      await stopped_engine.stop();
+    });
+  }
   await retryWithBackoff(async () => {
     await stopped_engine.delete();
   });
 } catch (e) {
-    failed = true;
-    core.info('failed to cleanup stopped engine: ' + e);
+  failed = true;
+  core.info('failed to cleanup stopped engine: ' + e);
 }
 
 try {
@@ -55,8 +61,8 @@ try {
     await database.delete();
   });
 } catch (e) {
-    failed = true;
-    core.info('failed to cleanup database: ' + e);
+  failed = true;
+  core.info('failed to cleanup database: ' + e);
 }
 
 if (failed) {
