@@ -7003,10 +7003,10 @@ class ConnectionV2 extends base_1.Connection {
         this.accountInfo = await this.resolveAccountInfo();
         if (this.accountInfo.infraVersion >= 2) {
             if (database) {
-                await this.execute(`USE DATABASE ${database}`);
+                await this.execute(`USE DATABASE "${database}"`);
             }
             if (engineName) {
-                await this.execute(`USE ENGINE ${engineName}`);
+                await this.execute(`USE ENGINE "${engineName}"`);
             }
         }
         else {
@@ -7943,12 +7943,20 @@ class EngineService {
         this.CREATE_PARAMETER_NAMES_V2 = {
             spec: "TYPE",
             scale: "NODES",
-            auto_stop: "AUTO_STOP"
+            auto_stop: "AUTO_STOP",
+            initially_stopped: "INITIALLY_STOPPED"
         };
         this.INTERNAL_OPTIONS = {
             FB_INTERNAL_OPTIONS_ENGINE_VERSION: "VERSION"
         };
         this.context = context;
+    }
+    parseStatusForEngine(value, name) {
+        const status = (0, types_1.processEngineStatus)(value);
+        if (status === undefined) {
+            throw new Error(`Engine ${name} has an unexpected status ${value}`);
+        }
+        return status;
     }
     async getById(engineId) {
         throw new errors_1.DeprecationError({
@@ -7969,7 +7977,7 @@ class EngineService {
         return new model_2.EngineModel(this.context.connection, {
             name,
             endpoint,
-            current_status_summary: status
+            current_status_summary: this.parseStatusForEngine(status, name)
         });
     }
     async getByDB(database_name) {
@@ -7983,7 +7991,7 @@ class EngineService {
             engines.push(new model_2.EngineModel(this.context.connection, {
                 name,
                 endpoint,
-                current_status_summary: summary
+                current_status_summary: this.parseStatusForEngine(summary, name)
             }));
         }
         return engines;
@@ -7998,7 +8006,7 @@ class EngineService {
             engines.push(new model_2.EngineModel(this.context.connection, {
                 name,
                 endpoint,
-                current_status_summary: summary
+                current_status_summary: this.parseStatusForEngine(summary, name)
             }));
         }
         return engines;
@@ -8011,6 +8019,13 @@ class EngineService {
             if (disallowedOptions.length > 0) {
                 throw new errors_1.DeprecationError({
                     message: `The following engine options are not supported for this account: ${disallowedOptions.join(", ")}`
+                });
+            }
+        }
+        if (accountVersion == 1) {
+            if (options.initially_stopped !== undefined) {
+                throw new errors_1.DeprecationError({
+                    message: "initially_stopped is not supported for this account"
                 });
             }
         }
@@ -8104,7 +8119,7 @@ class EngineModel {
         this.current_status_summary = current_status_summary;
     }
     async start() {
-        const query = `START ENGINE ${this.name}`;
+        const query = `START ENGINE "${this.name}"`;
         await this.connection.execute(query);
         await this.refreshStatus();
         const res = {
@@ -8119,7 +8134,7 @@ class EngineModel {
         return this.start();
     }
     async stop() {
-        const query = `STOP ENGINE ${this.name}`;
+        const query = `STOP ENGINE "${this.name}"`;
         await this.connection.execute(query);
         await this.refreshStatus();
         const res = {
@@ -8153,7 +8168,7 @@ class EngineModel {
         }
         const firstRow = data[0];
         const status = (0, types_1.processEngineStatus)(firstRow[0]);
-        if (!status) {
+        if (status === undefined) {
             throw new Error(`Engine ${this.name} has an unexpected status ${firstRow[0]}`);
         }
         this.current_status_summary = status;
@@ -8173,6 +8188,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.WarmupMethod = exports.EngineType = exports.EngineStatusSummary = exports.processEngineStatus = void 0;
 function processEngineStatus(value) {
     // Translate status from db to an EngineStatusSummary object
+    if (value === undefined) {
+        return undefined;
+    }
     const enumKey = Object.keys(EngineStatusSummary).find(key => EngineStatusSummary[key].toLowerCase() === value.toLowerCase());
     if (enumKey !== undefined) {
         return EngineStatusSummary[enumKey];
@@ -15522,7 +15540,7 @@ module.exports = require("zlib");
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"name":"firebolt-sdk","version":"1.4.1","description":"Official firebolt Node.JS sdk","main":"./build/src/index.js","types":"./build/src/index.d.ts","engines":{"node":">=12.0"},"scripts":{"build":"rm -fr ./build && tsc -p tsconfig.lib.json","release":"standard-version","test":"jest","test:ci":"jest --ci --bail","type-check":"tsc -p tsconfig.lib.json"},"prettier":{"tabWidth":2,"trailingComma":"none","arrowParens":"avoid"},"author":"","license":"Apache-2.0","devDependencies":{"@types/jest":"^27.5.2","@types/node-fetch":"^2.5.12","@typescript-eslint/eslint-plugin":"^5.4.0","@typescript-eslint/parser":"^5.4.0","dotenv":"^16.0.1","eslint":"^8.2.0","eslint-config-prettier":"^8.3.0","eslint-plugin-prettier":"^4.0.0","jest":"^27.5.1","msw":"^0.45.0","nock":"^13.4.0","prettier":"^2.4.1","standard-version":"^9.3.2","ts-jest":"^27.0.7","ts-jest-resolver":"^2.0.0","typescript":"^4.7.4"},"dependencies":{"@types/json-bigint":"^1.0.1","abort-controller":"^3.0.0","agentkeepalive":"^4.5.0","json-bigint":"^1.0.0","node-fetch":"^2.6.6"}}');
+module.exports = JSON.parse('{"name":"firebolt-sdk","version":"1.5.0","description":"Official firebolt Node.JS sdk","main":"./build/src/index.js","types":"./build/src/index.d.ts","engines":{"node":">=12.0"},"scripts":{"build":"rm -fr ./build && tsc -p tsconfig.lib.json","release":"standard-version","test":"jest","test:ci":"jest --ci --bail","type-check":"tsc -p tsconfig.lib.json"},"prettier":{"tabWidth":2,"trailingComma":"none","arrowParens":"avoid"},"author":"","license":"Apache-2.0","devDependencies":{"@types/jest":"^27.5.2","@types/node-fetch":"^2.5.12","@typescript-eslint/eslint-plugin":"^5.4.0","@typescript-eslint/parser":"^5.4.0","dotenv":"^16.0.1","eslint":"^8.2.0","eslint-config-prettier":"^8.3.0","eslint-plugin-prettier":"^4.0.0","jest":"^27.5.1","msw":"^0.45.0","nock":"^13.4.0","prettier":"^2.4.1","standard-version":"^9.3.2","ts-jest":"^27.0.7","ts-jest-resolver":"^2.0.0","typescript":"^4.7.4"},"dependencies":{"@types/json-bigint":"^1.0.1","abort-controller":"^3.0.0","agentkeepalive":"^4.5.0","json-bigint":"^1.0.0","node-fetch":"^2.6.6"}}');
 
 /***/ }),
 
