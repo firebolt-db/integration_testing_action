@@ -15395,14 +15395,11 @@ async function retryWithBackoff(fn) {
         try {
             return await fn();
         } catch (error) {
-            if (error.statusCode === 502) {
+            if (error.statusCode === 502 || error.statusCode === 429) {
                 retryCount++;
-                console.log(`Received error 502. Retrying (${retryCount}/${maxRetries})...`);
-                await new Promise(resolve => setTimeout(resolve, backoffDelayMs));
-            } else if (error.statusCode === 429) {
-                retryCount++;
-                console.log(`Received error 429. Retrying (${retryCount}/${maxRetries})...`);
-                await new Promise(resolve => setTimeout(resolve, backoffDelayRateLimit));
+                console.log(`Received error ${error.statusCode}. Retrying (${retryCount}/${maxRetries})...`);
+                const delay = error.statusCode === 502 ? backoffDelayMs : backoffDelayRateLimit;
+                await new Promise(resolve => setTimeout(resolve, delay));
             } else {
                 throw error;
             }
