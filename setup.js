@@ -88,7 +88,7 @@ try {
         err_msg => core.setFailed(err_msg)
       ),
       err_msg => core.setFailed(err_msg)
-    ), on_error
+    ), err_msg => core.setFailed(err_msg)
   })
 
 } catch (error) {
