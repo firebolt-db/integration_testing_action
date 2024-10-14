@@ -20,7 +20,7 @@ function resolve_local_file(file_path) {
 }
 
 function setup_virtualenv(on_success, on_error) {
-  exec('rm -r' + resolve_local_file('.venv') + ' || true && python -m pip install virtualenv && python -m virtualenv ' + resolve_local_file('.venv'),
+  exec('rm -r ' + resolve_local_file('.venv') + ' || true && python -m venv ' + resolve_local_file('.venv'),
     function (error, stdout, stderr) {
       if (error != null) {
         return on_error(error.message)
@@ -88,7 +88,7 @@ try {
         err_msg => core.setFailed(err_msg)
       ),
       err_msg => core.setFailed(err_msg)
-    ), err_msg => core.setFailed(err_msg)
+    ), on_error
   })
 
 } catch (error) {
